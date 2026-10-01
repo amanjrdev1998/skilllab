@@ -70,7 +70,7 @@ export default function LoginPage() {
         setSuccessMessage('Login successful! Redirecting...');
 
         setTimeout(() => {
-          router.push('/dashboard');
+          router.push('/admin/dashboard');
         }, 1200);
       } catch {
         setIsLoading(false);
