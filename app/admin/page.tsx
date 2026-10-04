@@ -15,6 +15,9 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
+const apiBaseUrl =
+  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+
 export default function LoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -27,6 +30,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [loginError, setLoginError] = useState('');
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -50,32 +54,57 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccessMessage('');
+    setLoginError('');
 
     if (!validateForm()) return;
 
     setIsLoading(true);
 
-    setTimeout(() => {
-      try {
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem(
-          'userData',
-          JSON.stringify({
-            name: formData.email.split('@')[0],
-            email: formData.email,
-          })
-        );
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email.trim(),
+          password: formData.password,
+        }),
+      });
+      const payload = await response.json();
 
-        setIsLoading(false);
-        setSuccessMessage('Login successful! Redirecting...');
-
-        setTimeout(() => {
-          router.push('/admin/dashboard');
-        }, 1200);
-      } catch {
-        setIsLoading(false);
+      if (!response.ok || !payload.success) {
+        setLoginError(payload.message || 'Unable to sign in. Please try again.');
+        return;
       }
-    }, 900);
+
+      if (payload.data?.user?.role !== 'admin') {
+        setLoginError('This account does not have administrator access.');
+        return;
+      }
+
+      if (!payload.data?.token || !payload.data?.secret_key) {
+        setLoginError('The sign-in response was incomplete. Please try again.');
+        return;
+      }
+
+      localStorage.setItem('token', payload.data.token);
+      localStorage.setItem('secret_key', payload.data.secret_key);
+      localStorage.setItem('user', JSON.stringify(payload.data.user));
+      localStorage.setItem('userData', JSON.stringify(payload.data.user));
+      localStorage.setItem('isAuthenticated', 'true');
+      if (payload.data.expires_in) {
+        localStorage.setItem(
+          'expires_at',
+          String(Date.now() + payload.data.expires_in * 1000),
+        );
+      }
+
+      setSuccessMessage('Login successful! Redirecting...');
+      window.setTimeout(() => router.push('/admin/dashboard'), 900);
+    } catch {
+      setLoginError('Unable to connect to the authentication service.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSocialLogin = async (provider: string) => {
@@ -191,6 +220,13 @@ export default function LoginPage() {
               <h2 className="text-3xl font-black tracking-[-0.05em] text-slate-900 sm:text-4xl">Welcome Back</h2>
               <p className="mt-2 text-sm text-slate-600 sm:text-base">Sign in to your account to continue shopping</p>
             </div>
+
+            {loginError && (
+              <div role="alert" className="mb-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>{loginError}</p>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>

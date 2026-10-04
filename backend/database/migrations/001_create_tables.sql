@@ -53,6 +53,7 @@ CREATE TABLE enrollments (
     user_id BIGINT UNSIGNED NOT NULL,
     course_id BIGINT UNSIGNED NOT NULL,
     course_name TEXT NULL,
+    order_id VARCHAR(40) NULL,
     status ENUM('pending', 'active', 'completed', 'cancelled') NOT NULL DEFAULT 'pending',
     progress TINYINT UNSIGNED NOT NULL DEFAULT 0,
     price_paid DECIMAL(10, 2) NULL,
@@ -62,6 +63,7 @@ CREATE TABLE enrollments (
     completed_at TIMESTAMP NULL,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY unique_enrollment (user_id, course_id),
+    UNIQUE KEY unique_order_id (order_id),
     CONSTRAINT fk_enrollments_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_enrollments_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

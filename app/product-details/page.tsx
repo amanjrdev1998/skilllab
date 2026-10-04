@@ -7,14 +7,13 @@ import {
   Clock3,
   PlayCircle,
   Users,
+  X,
 } from "lucide-react";
+import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
-
-const apiBaseUrl =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 const included = [
   "Lifetime access to every lesson",
@@ -118,6 +117,10 @@ function ProductDetailsContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [orderId, setOrderId] = useState("");
 
   /*
    * Check whether user is logged in
@@ -180,9 +183,51 @@ function ProductDetailsContent() {
   /*
    * Form submit
    */
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setIsSubmitted(true);
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setSubmitError("Your login session has expired. Please log in again.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const response = await fetch("/api/v1/enrollments", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ course_id: product?.id }),
+      });
+      const payload = (await response.json()) as {
+        success: boolean;
+        message?: string;
+        data?: { order_id?: string };
+      };
+
+      if (!response.ok || !payload.success) {
+        setSubmitError(payload.message ?? "Unable to create your enrollment.");
+        return;
+      }
+
+      if (!payload.data?.order_id) {
+        setSubmitError("Enrollment was created, but no order ID was returned.");
+        return;
+      }
+
+      setOrderId(payload.data.order_id);
+      setIsSubmitted(true);
+      setIsPaymentOpen(true);
+    } catch {
+      setSubmitError("Unable to create your enrollment. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   /*
@@ -388,12 +433,12 @@ function ProductDetailsContent() {
                   <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-500" />
 
                   <h3 className="mt-5 text-xl font-black">
-                    Details received
+                    Enrollment created
                   </h3>
 
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Our team will contact you shortly with the next steps
-                    for your course enrollment.
+                    Your enrollment is pending payment. Complete payment using
+                    the QR code to continue.
                   </p>
 
                 </div>
@@ -536,14 +581,25 @@ function ProductDetailsContent() {
                   </div>
 
                   {/* SUBMIT */}
-                  <button
+                  <button id="paybutton"
                     type="submit"
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-indigo-600"
+                    disabled={isSubmitting || isSubmitted}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Continue Enrollment
+                    {isSubmitting
+                      ? "Creating enrollment..."
+                      : isSubmitted
+                        ? "Enrollment created"
+                        : "Continue Enrollment"}
 
                     <ArrowRight className="h-4 w-4" />
                   </button>
+
+                  {submitError && (
+                    <p role="alert" className="text-sm font-medium text-red-600">
+                      {submitError}
+                    </p>
+                  )}
 
                 </form>
               )
@@ -662,6 +718,54 @@ function ProductDetailsContent() {
 
           </section>
         </div>
+
+        {isPaymentOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="payment-modal-title"
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 id="payment-modal-title" className="text-2xl font-black text-slate-900">
+                    Complete your payment
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Scan this QR code to pay {productPrice} for {productTitle}.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPaymentOpen(false)}
+                  aria-label="Close payment dialog"
+                  className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="relative mx-auto mt-6 aspect-square w-full max-w-[300px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-3">
+                <Image
+                  src="/paymentQr.jpeg"
+                  alt="Payment QR code"
+                  fill
+                  sizes="(max-width: 640px) 80vw, 300px"
+                  className="object-contain p-3"
+                />
+              </div>
+
+              <p className="mt-5 text-center text-sm leading-6 text-slate-500">
+                Your enrollment has been saved as pending. This dialog stays open
+                when you click outside it.
+              </p>
+              <p className="mt-3 text-center text-xs font-semibold text-slate-600">
+                Order ID: <span className="font-mono text-indigo-700">{orderId}</span>
+              </p>
+            </section>
+          </div>
+        )}
       </main>
 
       <SiteFooter />
