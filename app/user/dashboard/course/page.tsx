@@ -5,26 +5,32 @@ import { useRouter } from "next/navigation";
 import CourseList from "@/components/CourseList";
 import DashboardLayout from "@/components/DashboardLayout";
 
-type User = { name: string; email: string };
+type User = { id: number; name: string; email: string; role?: string };
 
 export default function UserCoursePage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem("isAuthenticated");
-    const userData = localStorage.getItem("userData");
+    const token = localStorage.getItem("token");
+    const userData = localStorage.getItem("user");
 
-    // if (!isAuthenticated) {
-    //   router.push("/user");
-    //   return;
-    // }
+    if (!token || !userData) {
+      router.replace("/user");
+      return;
+    }
 
-    const timeoutId = window.setTimeout(() => {
-      setUser(userData ? JSON.parse(userData) : { name: "Learner", email: "learner@example.com" });
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
+    try {
+      const parsedUser: User = JSON.parse(userData);
+      if (!parsedUser.id || !parsedUser.name || !parsedUser.email) {
+        throw new Error("Invalid user data");
+      }
+      const timeoutId = window.setTimeout(() => setUser(parsedUser), 0);
+      return () => window.clearTimeout(timeoutId);
+    } catch (error) {
+      console.error("Failed to load user session:", error);
+      router.replace("/user");
+    }
   }, [router]);
 
   if (!user) {

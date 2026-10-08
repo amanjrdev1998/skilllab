@@ -2,24 +2,39 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, Check, Copy, Eye, FileText, Gift, X } from "lucide-react";
+import Link from "next/link";
 
 type Course = {
   id: number;
+  enrollmentId: number;
   title: string;
   category: string;
   lessons: string;
   duration: string;
-  price: string;
+  price: string | null;
+  status: "pending" | "active" | "completed";
+  progress: number;
   pdfUrl?: string;
 };
 
-const courses: Course[] = [
-  { id: 1, title: "Facebook Ads Mastery", category: "Digital Marketing", lessons: "32 Lessons", duration: "8 Hours", price: "₹2,999" },
-  { id: 2, title: "Instagram Ads Mastery", category: "Digital Marketing", lessons: "28 Lessons", duration: "7 Hours", price: "₹2,499" },
-  { id: 3, title: "AI Automation", category: "Artificial Intelligence", lessons: "40 Lessons", duration: "12 Hours", price: "₹3,999" },
-  { id: 4, title: "Cloud AI Agent Generation", category: "Artificial Intelligence", lessons: "45 Lessons", duration: "15 Hours", price: "₹4,999" },
-  { id: 5, title: "Flutter AI App Development Crash Course", category: "Mobile Development", lessons: "24 Lessons", duration: "6 Hours", price: "₹3,499" },
-];
+type Enrollment = {
+  id: number;
+  course_id: number;
+  title: string;
+  category: string;
+  lessons_count: number;
+  duration_hours: string;
+  pdf_url: string | null;
+  status: Course["status"];
+  progress: number;
+  price_paid: string | null;
+};
+
+type EnrollmentsResponse = {
+  success: boolean;
+  message?: string;
+  data?: { enrollments?: Enrollment[] };
+};
 
 const referralCodeFor = (name: string, courseId = 0) => {
   const normalizedName = name.trim().toUpperCase() || "LEARNER";
@@ -34,6 +49,9 @@ const referralCodeFor = (name: string, courseId = 0) => {
 };
 
 export default function CourseList({ userName = "Learner" }: { userName?: string }) {
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [pdfUrl, setPdfUrl] = useState("");
   const [referralOpen, setReferralOpen] = useState(false);
@@ -41,6 +59,49 @@ export default function CourseList({ userName = "Learner" }: { userName?: string
   const [copiedCourseId, setCopiedCourseId] = useState<number | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const referralCode = referralCodeFor(userName);
+
+  useEffect(() => {
+    const loadCourses = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setLoadError("Your login session has expired. Please log in again.");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/v1/enrollments", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as EnrollmentsResponse;
+
+        if (!response.ok || !payload.success || !payload.data?.enrollments) {
+          setLoadError(payload.message ?? "Unable to load your purchased courses.");
+          return;
+        }
+
+        setCourses(payload.data.enrollments.map((enrollment) => ({
+          id: enrollment.course_id,
+          enrollmentId: enrollment.id,
+          title: enrollment.title,
+          category: enrollment.category,
+          lessons: `${enrollment.lessons_count} Lessons`,
+          duration: `${Number(enrollment.duration_hours)} Hours`,
+          price: enrollment.price_paid,
+          status: enrollment.status,
+          progress: enrollment.progress,
+          pdfUrl: enrollment.pdf_url ?? undefined,
+        })));
+      } catch {
+        setLoadError("Unable to load your purchased courses right now.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadCourses();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -85,8 +146,8 @@ export default function CourseList({ userName = "Learner" }: { userName?: string
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-300">Learning library</p>
         <div className="mt-2 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
-            <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Course List</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-indigo-100">Review your available courses and open the course PDF when you are ready to study.</p>
+            <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Your Purchased Courses</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-indigo-100">Track your enrollments and continue learning from your purchased courses.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3"><button type="button" onClick={() => { setReferralOpen(true); setReferralCopied(false); }} className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-orange-400 focus:outline-none focus:ring-4 focus:ring-orange-300/30"><Gift className="h-4 w-4" /> Refer &amp; earn</button><div className="flex items-center gap-2 text-sm font-semibold text-indigo-100"><BookOpen className="h-5 w-5" /> {courses.length} courses</div></div>
         </div>
@@ -97,12 +158,25 @@ export default function CourseList({ userName = "Learner" }: { userName?: string
           <span>Course</span><span>Access</span><span>Progress</span><span>Amount</span><span className="text-right">View</span>
         </div>
         <div className="divide-y divide-slate-200">
-          {courses.map((course) => (
-            <div key={course.id} className="grid gap-4 px-5 py-5 md:grid-cols-[1fr_170px_130px_110px_90px] md:items-center md:px-6">
+          {isLoading ? (
+            <p className="p-6 text-sm text-slate-500">Loading your purchased courses...</p>
+          ) : loadError ? (
+            <p role="alert" className="p-6 text-sm font-medium text-red-700">{loadError}</p>
+          ) : courses.length === 0 ? (
+            <div className="p-6 text-sm text-slate-600">
+              <p>You have not purchased any courses yet.</p>
+              <Link href="/#courses" className="mt-3 inline-block font-bold text-indigo-600 hover:text-indigo-700">Browse courses</Link>
+            </div>
+          ) : courses.map((course) => (
+            <div key={course.enrollmentId} className="grid gap-4 px-5 py-5 md:grid-cols-[1fr_170px_130px_110px_90px] md:items-center md:px-6">
               <div className="flex items-start gap-3"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><BookOpen className="h-5 w-5" /></div><div><h2 className="font-bold text-slate-950">{course.title}</h2><p className="mt-1 text-xs text-slate-500">{course.category} · {course.lessons} · {course.duration}</p><div className="mt-2 flex w-fit items-center gap-1 rounded-md bg-orange-50 py-1 pl-2 pr-1 text-[11px] font-bold tracking-[0.12em] text-orange-700"><span>Referral: {referralCodeFor(userName, course.id)}</span><button type="button" onClick={() => copyCourseReferralCode(course.id)} aria-label={`Copy referral code for ${course.title}`} title="Copy referral code" className="rounded p-1 transition hover:bg-orange-100"><span className="sr-only">Copy referral code</span>{copiedCourseId === course.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}</button></div>{copiedCourseId === course.id && <p className="mt-1 text-[11px] font-semibold tracking-normal text-emerald-600">Copied</p>}</div></div>
-              <span className="w-fit rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700">Pending Approval</span>
-              <div><div className="flex items-center justify-between text-xs font-semibold text-slate-500"><span>Not started</span><span>0%</span></div><div className="mt-2 h-2 rounded-full bg-slate-100"><div className="h-full w-0 rounded-full bg-indigo-600" /></div></div>
-              <span className="text-lg font-black text-slate-950">{course.price}</span>
+              <span className={`w-fit rounded-full px-3 py-1.5 text-xs font-bold capitalize ${
+                course.status === "active" ? "bg-emerald-50 text-emerald-700"
+                  : course.status === "completed" ? "bg-indigo-50 text-indigo-700"
+                    : "bg-amber-50 text-amber-700"
+              }`}>{course.status === "pending" ? "Pending Approval" : course.status}</span>
+              <div><div className="flex items-center justify-between text-xs font-semibold text-slate-500"><span>{course.progress > 0 ? "In progress" : "Not started"}</span><span>{course.progress}%</span></div><div className="mt-2 h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-600" style={{ width: `${course.progress}%` }} /></div></div>
+              <span className="text-lg font-black text-slate-950">{course.price === null ? "—" : `₹${Number(course.price).toLocaleString("en-IN")}`}</span>
               <button type="button" onClick={() => openReader(course)} aria-label={`View PDF for ${course.title}`} title="Open PDF reader" className="inline-flex w-fit items-center justify-center rounded-lg border border-slate-300 p-2.5 text-slate-600 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 md:ml-auto"><Eye className="h-5 w-5" /></button>
             </div>
           ))}

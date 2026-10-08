@@ -38,4 +38,22 @@ final class EnrollmentRepository
             ]
             : null;
     }
+
+    public function forUser(int $userId): array
+    {
+        $statement = $this->database()->prepare(
+            "SELECT enrollments.id, enrollments.course_id, courses.title,
+                    courses.category, courses.lessons_count, courses.duration_hours,
+                    courses.pdf_url, enrollments.status, enrollments.progress,
+                    enrollments.price_paid
+             FROM enrollments
+             INNER JOIN courses ON courses.id = enrollments.course_id
+             WHERE enrollments.user_id = :user_id
+               AND enrollments.status != 'cancelled'
+             ORDER BY enrollments.enrolled_at DESC"
+        );
+        $statement->execute(['user_id' => $userId]);
+
+        return $statement->fetchAll();
+    }
 }

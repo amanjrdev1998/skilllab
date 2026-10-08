@@ -105,6 +105,16 @@ final class ApiRoutes
             );
         });
 
+        $router->get('/api/v1/enrollments', static function (
+            Request $request,
+            Response $response
+        ) use ($enrollments, $guard): never {
+            $enrollments->index(
+                $guard->user($request, $response),
+                $response
+            );
+        });
+
 
         // =========================
         // ADMIN APIs

@@ -34,6 +34,7 @@ The API is available at `http://localhost:8000/api/v1`.
 - `GET /auth/me` with `Authorization: Bearer <token>`
 - `GET /courses` for the published public course catalog
 - `POST /enrollments` with `{ "course_id" }` and an authenticated bearer token to create a pending enrollment for a published course
+- `GET /enrollments` with an authenticated bearer token to list the current user's non-cancelled enrollments
 - `GET /admin/dashboard` with an administrator bearer token for published courses, student accounts, and all enrollments
 - `POST /admin/enrollments/{id}/approve` with an administrator bearer token to change a pending enrollment to `active`
 

@@ -5,16 +5,13 @@ import Swal from "sweetalert2";
 import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Users,
   Settings,
-  BarChart3,
   FileText,
   Calendar,
   LogOut,
   ChevronLeft,
   ChevronRight,
   Home,
-  Package,
   HelpCircle,
   Loader2,
   Globe,
@@ -22,7 +19,7 @@ import {
 import toast from "react-hot-toast";
 
 interface SidebarProps {
-  user: { id: number; name: string; email: string; role?: string };
+  user: { id?: number; name: string; email: string; role?: string };
   onLogout?: () => void;
   isMobileOpen: boolean;
   onCloseMobile: () => void;
@@ -53,19 +50,7 @@ export default function Sidebar({
       title: "Main",
       items: [
         { icon: LayoutDashboard, label: "Dashboard", href: dashboardBase },
-        {
-          icon: BarChart3,
-          label: "Analytics",
-          href: `${dashboardBase}/analytics`,
-        },
         { icon: FileText, label: "Course", href: `${dashboardBase}/course` },
-      ],
-    },
-    {
-      title: "Management",
-      items: [
-        { icon: Users, label: "Users", href: `${dashboardBase}/users` },
-        { icon: Package, label: "Products", href: `${dashboardBase}/products` },
       ],
     },
     {
@@ -95,7 +80,6 @@ export default function Sidebar({
 
   // Logout function - send user_id to API
   const handleLogout = async () => {
-    // ✅ FIXED: SweetAlert now properly blocks execution until user responds
     const result = await Swal.fire({
       title: "Are you sure?",
       text: "You will be logged out of your account.",
@@ -440,7 +424,7 @@ export default function Sidebar({
                 </div>
               </div>
 
-              {/* 🌐 NEW: Visit Website Button (expanded) */}
+              {/* Visit Website Button (expanded) */}
               <a
                 href={SITE_URL}
                 target="_blank"
@@ -475,11 +459,17 @@ export default function Sidebar({
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-bold mx-auto shadow-lg shadow-purple-500/30">
-                {user?.name?.charAt(0)?.toUpperCase() || "U"}
+              <div className="group relative mx-auto w-fit">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-purple-500/30">
+                  {user?.name?.charAt(0)?.toUpperCase() || "U"}
+                </div>
+                <div className="pointer-events-none absolute bottom-0 left-full z-50 ml-3 w-52 rounded-lg border border-slate-700 bg-slate-800 p-3 opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+                  <p className="truncate text-sm font-semibold text-white">{user?.name || "User"}</p>
+                  <p className="mt-1 truncate text-xs text-slate-400">{user?.email || "Email unavailable"}</p>
+                </div>
               </div>
 
-              {/* 🌐 NEW: Visit Website Button (collapsed) */}
+              {/* Visit Website Button (collapsed) */}
               <a
                 href={SITE_URL}
                 target="_blank"

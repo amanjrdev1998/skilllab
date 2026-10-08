@@ -9,7 +9,7 @@ import SiteFooter from './SiteFooter';
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  user: { name: string; email: string };
+  user: { id?: number; name: string; email: string; role?: string };
 }
 
 export default function DashboardLayout({ children, user }: DashboardLayoutProps) {

@@ -23,26 +23,72 @@ type Course = {
   price: string;
   progress: number;
   lessons: string;
-  color: string;
+  status: "pending" | "active" | "completed";
 };
 
-const courses: Course[] = [
-  { id: 1, title: "Facebook Ads Mastery", price: "₹2,999", progress: 72, lessons: "23 of 32 lessons", color: "bg-indigo-600" },
-  { id: 3, title: "AI Automation", price: "₹3,999", progress: 38, lessons: "15 of 40 lessons", color: "bg-cyan-600" },
-];
+type Enrollment = {
+  id: number;
+  course_id: number;
+  title: string;
+  lessons_count: number;
+  status: Course["status"];
+  progress: number;
+  price_paid: string | null;
+};
+
+type EnrollmentsResponse = {
+  success: boolean;
+  message?: string;
+  data?: { enrollments?: Enrollment[] };
+};
 
 const stats = [
-  { label: "Courses enrolled", value: "4", icon: BookOpen, tone: "text-indigo-600 bg-indigo-50" },
+  { label: "Courses enrolled", icon: BookOpen, tone: "text-indigo-600 bg-indigo-50" },
   { label: "Lessons completed", value: "38", icon: CheckCircle2, tone: "text-emerald-600 bg-emerald-50" },
   { label: "Learning hours", value: "24.5", icon: Clock3, tone: "text-orange-600 bg-orange-50" },
   { label: "Current streak", value: "7 days", icon: Trophy, tone: "text-cyan-600 bg-cyan-50" },
 ];
 
 export default function UserDashboard({ user }: { user: User }) {
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(true);
+  const [enrollmentError, setEnrollmentError] = useState("");
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState("");
   const [shareMessage, setShareMessage] = useState("");
   const objectUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const loadEnrollments = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setEnrollmentError("Your login session has expired. Please log in again.");
+        setIsLoadingEnrollments(false);
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/v1/enrollments", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as EnrollmentsResponse;
+
+        if (!response.ok || !payload.success || !payload.data?.enrollments) {
+          setEnrollmentError(payload.message ?? "Unable to load your courses.");
+          return;
+        }
+
+        setEnrollments(payload.data.enrollments);
+      } catch {
+        setEnrollmentError("Unable to load your courses right now.");
+      } finally {
+        setIsLoadingEnrollments(false);
+      }
+    };
+
+    void loadEnrollments();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -98,7 +144,7 @@ export default function UserDashboard({ user }: { user: User }) {
         {stats.map(({ label, value, icon: Icon, tone }) => (
           <div key={label} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${tone}`}><Icon className="h-5 w-5" /></div>
-            <div><p className="text-2xl font-black text-slate-950">{value}</p><p className="text-xs font-medium text-slate-500">{label}</p></div>
+            <div><p className="text-2xl font-black text-slate-950">{label === "Courses enrolled" ? enrollments.length : value}</p><p className="text-xs font-medium text-slate-500">{label}</p></div>
           </div>
         ))}
       </section>
@@ -107,18 +153,51 @@ export default function UserDashboard({ user }: { user: User }) {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">Continue learning</p><h2 className="mt-1 text-2xl font-black text-slate-950">Your courses</h2></div><Link href="/#courses" className="text-sm font-bold text-indigo-600 hover:text-indigo-700">Browse courses</Link></div>
           <div className="mt-6 space-y-5">
-            {courses.map((course) => (
-              <div key={course.id} className="rounded-xl border border-slate-200 p-4">
+            {isLoadingEnrollments ? (
+              <p className="rounded-xl bg-slate-50 p-5 text-sm text-slate-500">Loading your courses...</p>
+            ) : enrollmentError ? (
+              <p role="alert" className="rounded-xl bg-red-50 p-5 text-sm font-medium text-red-700">{enrollmentError}</p>
+            ) : enrollments.length === 0 ? (
+              <div className="rounded-xl bg-slate-50 p-5 text-sm text-slate-600">
+                You have not purchased any courses yet.
+              </div>
+            ) : enrollments.map((enrollment) => {
+              const course: Course = {
+                id: enrollment.course_id,
+                title: enrollment.title,
+                price: enrollment.price_paid
+                  ? `₹${Number(enrollment.price_paid).toLocaleString("en-IN")}`
+                  : "",
+                progress: enrollment.progress,
+                lessons: `${enrollment.lessons_count} lessons`,
+                status: enrollment.status,
+              };
+
+              return (
+              <div key={enrollment.id} className="rounded-xl border border-slate-200 p-4">
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                  <div><h3 className="font-bold text-slate-950">{course.title}</h3><p className="mt-1 text-xs text-slate-500">{course.lessons}</p></div>
+                  <div>
+                    <h3 className="font-bold text-slate-950">{course.title}</h3>
+                    <p className="mt-1 text-xs text-slate-500">{course.lessons}</p>
+                    <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
+                      course.status === "active"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : course.status === "completed"
+                          ? "bg-indigo-50 text-indigo-700"
+                          : "bg-amber-50 text-amber-700"
+                    }`}>
+                      {course.status === "pending" ? "Pending approval" : course.status}
+                    </span>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     <Link href={`/product-details?id=${course.id}&title=${encodeURIComponent(course.title)}&price=${encodeURIComponent(course.price)}`} className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-indigo-600"><PlayCircle className="h-4 w-4" /> View Course</Link>
                     <button type="button" onClick={() => shareCourse(course)} aria-label={`Share ${course.title}`} className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-3 py-2.5 text-slate-600 transition hover:border-indigo-400 hover:text-indigo-600"><Share2 className="h-4 w-4" /></button>
                   </div>
                 </div>
-                <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${course.color}`} style={{ width: `${course.progress}%` }} /></div><span className="text-xs font-bold text-slate-600">{course.progress}%</span></div>
+                <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-600" style={{ width: `${course.progress}%` }} /></div><span className="text-xs font-bold text-slate-600">{course.progress}%</span></div>
               </div>
-            ))}
+              );
+            })}
           </div>
           {shareMessage && <p className="mt-4 text-right text-xs font-bold text-emerald-600">{shareMessage}</p>}
         </div>

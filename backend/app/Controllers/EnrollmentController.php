@@ -48,4 +48,11 @@ final class EnrollmentController
 
         $response->success($enrollment, 201);
     }
+
+    public function index(array $user, Response $response): never
+    {
+        $response->success([
+            'enrollments' => $this->enrollments->forUser((int) $user['id']),
+        ]);
+    }
 }
