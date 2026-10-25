@@ -139,6 +139,13 @@ final class ApiRoutes
             );
         });
 
+        $router->post('/paypal/responce', static function (
+            Request $request,
+            Response $response
+        ) use ($payments): never {
+            $payments->paypalWebhook($request, $response);
+        });
+
 
         // =========================
         // ADMIN APIs

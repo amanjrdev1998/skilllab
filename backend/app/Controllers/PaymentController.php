@@ -38,12 +38,17 @@ final class PaymentController
         }
 
         $uniqueKey = $this->uuid();
-        $payment = $this->payments->createPending(
-            (int) $user['id'],
-            $validatedCourseId,
-            $uniqueKey,
-            $this->currency
-        );
+        try {
+            $payment = $this->payments->createPending(
+                (int) $user['id'],
+                $validatedCourseId,
+                $uniqueKey,
+                $this->currency
+            );
+        } catch (\Throwable $exception) {
+            error_log('PayPal payment initialization failed: ' . $exception->getMessage());
+            $response->error('Unable to initialize a PayPal payment.', 503);
+        }
         if ($payment === null) {
             $response->error('Published paid course not found.', 404);
         }
@@ -118,6 +123,82 @@ final class PaymentController
         }
 
         $response->success(['status' => 'completed']);
+    }
+
+    public function paypalWebhook(Request $request, Response $response): never
+    {
+        $event = $request->allInput();
+        $eventId = $event['id'] ?? null;
+        $eventType = $event['event_type'] ?? null;
+        if (
+            !is_string($eventId)
+            || $eventId === ''
+            || !is_string($eventType)
+            || $eventType === ''
+        ) {
+            $response->error('Invalid PayPal webhook event.', 400);
+        }
+
+        $headerNames = [
+            'paypal-auth-algo',
+            'paypal-cert-url',
+            'paypal-transmission-id',
+            'paypal-transmission-sig',
+            'paypal-transmission-time',
+        ];
+        $headers = [];
+        foreach ($headerNames as $headerName) {
+            $headers[$headerName] = $request->header($headerName);
+        }
+
+        try {
+            if (!$this->paypal->verifyWebhookSignature($headers, $event)) {
+                $response->error('PayPal webhook signature verification failed.', 401);
+            }
+        } catch (\Throwable $exception) {
+            error_log('PayPal webhook verification failed: ' . $exception->getMessage());
+            $response->error('Unable to verify the PayPal webhook.', 502);
+        }
+
+        if ($eventType !== 'PAYMENT.CAPTURE.COMPLETED') {
+            $response->success(['received' => true]);
+        }
+
+        $capture = $event['resource'] ?? null;
+        $relatedIds = is_array($capture)
+            ? ($capture['supplementary_data']['related_ids'] ?? null)
+            : null;
+        $amount = is_array($capture) ? ($capture['amount'] ?? null) : null;
+        if (
+            !is_array($capture)
+            || ($capture['status'] ?? null) !== 'COMPLETED'
+            || !is_string($capture['id'] ?? null)
+            || $capture['id'] === ''
+            || !is_array($relatedIds)
+            || !is_string($relatedIds['order_id'] ?? null)
+            || $relatedIds['order_id'] === ''
+            || !is_array($amount)
+            || !is_string($amount['value'] ?? null)
+            || !preg_match('/^\d+(?:\.\d{1,2})?$/D', $amount['value'])
+            || !is_string($amount['currency_code'] ?? null)
+            || $amount['currency_code'] === ''
+        ) {
+            $response->error('Invalid PayPal capture event.', 400);
+        }
+
+        try {
+            $this->payments->completeFromPayPalWebhook(
+                $relatedIds['order_id'],
+                $capture['id'],
+                $amount['value'],
+                $amount['currency_code']
+            );
+        } catch (\Throwable $exception) {
+            error_log('PayPal webhook processing failed for event ' . $eventId . ': ' . $exception->getMessage());
+            $response->error('Unable to process the PayPal capture webhook.', 500);
+        }
+
+        $response->success(['received' => true, 'status' => 'completed']);
     }
 
     private function uuid(): string

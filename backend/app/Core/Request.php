@@ -42,9 +42,25 @@ final class Request
         return $this->body[$key] ?? $default;
     }
 
+    public function allInput(): array
+    {
+        return $this->body;
+    }
+
+    public function header(string $name): ?string
+    {
+        foreach ($this->headers as $headerName => $value) {
+            if (strcasecmp($headerName, $name) === 0 && is_string($value)) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
     public function bearerToken(): ?string
     {
-        $authorization = $this->headers['Authorization'] ?? $this->headers['authorization'] ?? '';
+        $authorization = $this->header('Authorization') ?? '';
         return preg_match('/Bearer\s+(.+)/i', $authorization, $matches) ? trim($matches[1]) : null;
     }
 }

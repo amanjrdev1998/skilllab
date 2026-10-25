@@ -9,11 +9,13 @@ import {
   Users,
   X,
 } from "lucide-react";
-import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
+
+const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 
 const included = [
   "Lifetime access to every lesson",
@@ -121,6 +123,11 @@ function ProductDetailsContent() {
   const [submitError, setSubmitError] = useState("");
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const [paymentUniqueKey, setPaymentUniqueKey] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentCurrency, setPaymentCurrency] = useState("USD");
+  const [paymentError, setPaymentError] = useState("");
+  const [isCapturingPayment, setIsCapturingPayment] = useState(false);
 
   /*
    * Check whether user is logged in
@@ -192,11 +199,17 @@ function ProductDetailsContent() {
       return;
     }
 
+    if (orderId && paymentUniqueKey) {
+      setPaymentError("");
+      setIsPaymentOpen(true);
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitError("");
 
     try {
-      const response = await fetch("/api/v1/enrollments", {
+      const response = await fetch("/api/v1/payments/paypal/orders", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -207,24 +220,44 @@ function ProductDetailsContent() {
       const payload = (await response.json()) as {
         success: boolean;
         message?: string;
-        data?: { order_id?: string };
+        data?: {
+          order_id?: string;
+          unique_key?: string;
+          amount?: string | number;
+          currency?: string;
+        };
       };
 
       if (!response.ok || !payload.success) {
-        setSubmitError(payload.message ?? "Unable to create your enrollment.");
+        setSubmitError(payload.message ?? "Unable to create a PayPal order.");
         return;
       }
 
-      if (!payload.data?.order_id) {
-        setSubmitError("Enrollment was created, but no order ID was returned.");
+      const payment = payload.data;
+      if (
+        !payment?.order_id ||
+        !payment.unique_key ||
+        payment.amount === undefined ||
+        !payment.currency
+      ) {
+        setSubmitError("The payment service returned incomplete order details.");
         return;
       }
 
-      setOrderId(payload.data.order_id);
-      setIsSubmitted(true);
+      setOrderId(payment.order_id);
+      setPaymentUniqueKey(payment.unique_key);
+      setPaymentAmount(
+        new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: payment.currency,
+          maximumFractionDigits: 2,
+        }).format(Number(payment.amount))
+      );
+      setPaymentCurrency(payment.currency);
+      setPaymentError("");
       setIsPaymentOpen(true);
     } catch {
-      setSubmitError("Unable to create your enrollment. Please try again.");
+      setSubmitError("Unable to create a PayPal order. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -587,10 +620,10 @@ function ProductDetailsContent() {
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSubmitting
-                      ? "Creating enrollment..."
+                      ? "Preparing PayPal..."
                       : isSubmitted
-                        ? "Enrollment created"
-                        : "Continue Enrollment"}
+                        ? "Payment complete"
+                        : "Continue to PayPal"}
 
                     <ArrowRight className="h-4 w-4" />
                   </button>
@@ -733,7 +766,7 @@ function ProductDetailsContent() {
                     Complete your payment
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Scan this QR code to pay {productPrice} for {productTitle}.
+                    Pay {paymentAmount || productPrice} for {productTitle}.
                   </p>
                 </div>
                 <button
@@ -746,20 +779,93 @@ function ProductDetailsContent() {
                 </button>
               </div>
 
-              <div className="relative mx-auto mt-6 aspect-square w-full max-w-[300px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-3">
-                <Image
-                  src="/paymentQr.jpeg"
-                  alt="Payment QR code"
-                  fill
-                  sizes="(max-width: 640px) 80vw, 300px"
-                  className="object-contain p-3"
-                />
+              <div className="mt-6">
+                {paypalClientId ? (
+                  <PayPalScriptProvider
+                    options={{
+                      clientId: paypalClientId,
+                      currency: paymentCurrency,
+                    }}
+                  >
+                    <PayPalButtons
+                      style={{ layout: "vertical", shape: "rect" }}
+                      createOrder={() => Promise.resolve(orderId)}
+                      onApprove={async (data) => {
+                        if (data.orderID !== orderId) {
+                          setPaymentError("The approved PayPal order did not match this payment.");
+                          return;
+                        }
+
+                        const token = localStorage.getItem("token");
+                        if (!token) {
+                          setPaymentError("Your login session has expired. Please log in again.");
+                          return;
+                        }
+
+                        setIsCapturingPayment(true);
+                        setPaymentError("");
+                        try {
+                          const response = await fetch(
+                            "/api/v1/payments/paypal/capture",
+                            {
+                              method: "POST",
+                              headers: {
+                                Authorization: `Bearer ${token}`,
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify({
+                                unique_key: paymentUniqueKey,
+                              }),
+                            }
+                          );
+                          const payload = (await response.json()) as {
+                            success: boolean;
+                            message?: string;
+                            data?: { status?: string };
+                          };
+
+                          if (!response.ok || !payload.success) {
+                            setPaymentError(
+                              payload.message ?? "Unable to confirm your PayPal payment."
+                            );
+                            return;
+                          }
+
+                          setIsSubmitted(true);
+                          setIsPaymentOpen(false);
+                        } catch {
+                          setPaymentError(
+                            "Unable to confirm your PayPal payment. Please try again."
+                          );
+                        } finally {
+                          setIsCapturingPayment(false);
+                        }
+                      }}
+                      onError={(error) => {
+                        console.error("PayPal checkout failed:", error);
+                        setPaymentError("PayPal checkout failed. Please try again.");
+                      }}
+                    />
+                  </PayPalScriptProvider>
+                ) : (
+                  <p role="alert" className="text-sm font-medium text-red-600">
+                    PayPal is not configured. Please contact support.
+                  </p>
+                )}
               </div>
 
-              <p className="mt-5 text-center text-sm leading-6 text-slate-500">
-                Your enrollment has been saved as pending. This dialog stays open
-                when you click outside it.
-              </p>
+              {isCapturingPayment && (
+                <p role="status" className="mt-4 text-center text-sm text-slate-600">
+                  Confirming your payment...
+                </p>
+              )}
+
+              {paymentError && (
+                <p role="alert" className="mt-4 text-center text-sm font-medium text-red-600">
+                  {paymentError}
+                </p>
+              )}
+
               <p className="mt-3 text-center text-xs font-semibold text-slate-600">
                 Order ID: <span className="font-mono text-indigo-700">{orderId}</span>
               </p>

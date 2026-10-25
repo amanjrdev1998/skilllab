@@ -54,6 +54,40 @@ final class PayPalClient
         );
     }
 
+    public function verifyWebhookSignature(array $headers, array $event): bool
+    {
+        $webhookId = $this->configuration['webhook_id'];
+        if ($webhookId === '') {
+            throw new RuntimeException('PayPal webhook id is not configured.');
+        }
+
+        $headerNames = [
+            'auth_algo' => 'paypal-auth-algo',
+            'cert_url' => 'paypal-cert-url',
+            'transmission_id' => 'paypal-transmission-id',
+            'transmission_sig' => 'paypal-transmission-sig',
+            'transmission_time' => 'paypal-transmission-time',
+        ];
+        $verificationRequest = [];
+        foreach ($headerNames as $field => $headerName) {
+            $value = $headers[$headerName] ?? null;
+            if (!is_string($value) || $value === '') {
+                throw new RuntimeException('PayPal webhook signature headers are incomplete.');
+            }
+            $verificationRequest[$field] = $value;
+        }
+
+        $verificationRequest['webhook_id'] = $webhookId;
+        $verificationRequest['webhook_event'] = $event;
+        $verification = $this->request(
+            'POST',
+            '/v1/notifications/verify-webhook-signature',
+            $verificationRequest
+        );
+
+        return ($verification['verification_status'] ?? null) === 'SUCCESS';
+    }
+
     private function request(
         string $method,
         string $path,

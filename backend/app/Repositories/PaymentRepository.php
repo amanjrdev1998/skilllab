@@ -119,35 +119,7 @@ final class PaymentRepository
                 return;
             }
 
-            if ($payment['status'] !== 'pending' || $payment['paypal_order_id'] === null) {
-                throw new RuntimeException('Payment is not pending.');
-            }
-
-            $statement = $database->prepare(
-                "UPDATE payment_transactions
-                 SET status = 'completed', paypal_capture_id = :capture_id
-                 WHERE id = :id"
-            );
-            $statement->execute([
-                'capture_id' => $captureId,
-                'id' => $payment['id'],
-            ]);
-
-            $statement = $database->prepare(
-                "INSERT INTO enrollments
-                    (user_id, course_id, course_name, order_id, status, price_paid)
-                 SELECT payments.user_id, payments.course_id, courses.title,
-                        payments.paypal_order_id, 'active', payments.amount
-                 FROM payment_transactions AS payments
-                 INNER JOIN courses ON courses.id = payments.course_id
-                 WHERE payments.id = :payment_id
-                 ON DUPLICATE KEY UPDATE
-                    course_name = VALUES(course_name),
-                    order_id = VALUES(order_id),
-                    status = 'active',
-                    price_paid = VALUES(price_paid)"
-            );
-            $statement->execute(['payment_id' => $payment['id']]);
+            $this->completePayment($database, $payment, $captureId);
 
             $database->commit();
         } catch (\Throwable $exception) {
@@ -157,5 +129,91 @@ final class PaymentRepository
 
             throw $exception;
         }
+    }
+
+    public function completeFromPayPalWebhook(
+        string $orderId,
+        string $captureId,
+        string $amount,
+        string $currency
+    ): void {
+        $database = $this->database();
+        $database->beginTransaction();
+
+        try {
+            $statement = $database->prepare(
+                'SELECT id, user_id, course_id, paypal_order_id, paypal_capture_id,
+                        amount, currency, status
+                 FROM payment_transactions
+                 WHERE paypal_order_id = :order_id
+                 FOR UPDATE'
+            );
+            $statement->execute(['order_id' => $orderId]);
+            $payment = $statement->fetch();
+
+            if ($payment === false) {
+                throw new RuntimeException('PayPal order was not found.');
+            }
+            if (
+                $payment['currency'] !== $currency
+                || number_format((float) $payment['amount'], 2, '.', '')
+                    !== number_format((float) $amount, 2, '.', '')
+            ) {
+                throw new RuntimeException('PayPal capture amount does not match the payment.');
+            }
+
+            if ($payment['status'] === 'completed') {
+                if ($payment['paypal_capture_id'] !== $captureId) {
+                    throw new RuntimeException('PayPal capture does not match the completed payment.');
+                }
+                $database->commit();
+                return;
+            }
+            if ($payment['status'] !== 'pending') {
+                throw new RuntimeException('Payment is not pending.');
+            }
+
+            $this->completePayment($database, $payment, $captureId);
+            $database->commit();
+        } catch (\Throwable $exception) {
+            if ($database->inTransaction()) {
+                $database->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function completePayment(PDO $database, array $payment, string $captureId): void
+    {
+        if ($payment['status'] !== 'pending' || $payment['paypal_order_id'] === null) {
+            throw new RuntimeException('Payment is not pending.');
+        }
+
+        $statement = $database->prepare(
+            "UPDATE payment_transactions
+             SET status = 'completed', paypal_capture_id = :capture_id
+             WHERE id = :id"
+        );
+        $statement->execute([
+            'capture_id' => $captureId,
+            'id' => $payment['id'],
+        ]);
+
+        $statement = $database->prepare(
+            "INSERT INTO enrollments
+                (user_id, course_id, course_name, order_id, status, price_paid)
+             SELECT payments.user_id, payments.course_id, courses.title,
+                    payments.paypal_order_id, 'active', payments.amount
+             FROM payment_transactions AS payments
+             INNER JOIN courses ON courses.id = payments.course_id
+             WHERE payments.id = :payment_id
+             ON DUPLICATE KEY UPDATE
+                course_name = VALUES(course_name),
+                order_id = VALUES(order_id),
+                status = 'active',
+                price_paid = VALUES(price_paid)"
+        );
+        $statement->execute(['payment_id' => $payment['id']]);
     }
 }

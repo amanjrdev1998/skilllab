@@ -10,7 +10,7 @@ if (is_file($envFile)) {
         }
 
         [$key, $value] = explode('=', $line, 2);
-        $_ENV[trim($key)] = trim($value, " \\t\\\"'");
+        $_ENV[trim($key)] = trim($value, " \t\n\r\0\x0B\"'");
     }
 }
 // php -S localhost:8000 -t backend/public backend/public/index.php
@@ -30,6 +30,7 @@ return [
         'environment' => $_ENV['PAYPAL_ENV'] ?? 'sandbox',
         'client_id' => $_ENV['PAYPAL_CLIENT_ID'] ?? '',
         'client_secret' => $_ENV['PAYPAL_CLIENT_SECRET'] ?? '',
+        'webhook_id' => $_ENV['PAYPAL_WEBHOOK_ID'] ?? '',
         'currency' => strtoupper($_ENV['PAYPAL_CURRENCY'] ?? 'USD'),
     ],
 ];
