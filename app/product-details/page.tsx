@@ -771,7 +771,10 @@ function ProductDetailsContent() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setIsPaymentOpen(false)}
+                  onClick={() => {
+                    setIsPaymentOpen(false);
+                    setPaymentError("");
+                  }}
                   aria-label="Close payment dialog"
                   className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
                 >
@@ -780,16 +783,32 @@ function ProductDetailsContent() {
               </div>
 
               <div className="mt-6">
-                {paypalClientId ? (
+                {!paypalClientId ? (
+                  <p role="alert" className="text-sm font-medium text-red-600">
+                    PayPal is not configured. Please contact support.
+                  </p>
+                ) : !orderId ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-8 text-center text-sm text-slate-500">
+                    <div className="h-7 w-7 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                    <span>Preparing PayPal checkout...</span>
+                  </div>
+                ) : (
                   <PayPalScriptProvider
+                    key={`${paypalClientId}-${paymentCurrency}`}
                     options={{
                       clientId: paypalClientId,
                       currency: paymentCurrency,
                     }}
                   >
                     <PayPalButtons
+                      key={orderId}
                       style={{ layout: "vertical", shape: "rect" }}
-                      createOrder={() => Promise.resolve(orderId)}
+                      createOrder={async () => {
+                        if (!orderId) {
+                          throw new Error("PayPal order ID is not ready.");
+                        }
+                        return orderId;
+                      }}
                       onApprove={async (data) => {
                         if (data.orderID !== orderId) {
                           setPaymentError("The approved PayPal order did not match this payment.");
@@ -844,13 +863,11 @@ function ProductDetailsContent() {
                       onError={(error) => {
                         console.error("PayPal checkout failed:", error);
                         setPaymentError("PayPal checkout failed. Please try again.");
+                        setOrderId("");
+                        setPaymentUniqueKey("");
                       }}
                     />
                   </PayPalScriptProvider>
-                ) : (
-                  <p role="alert" className="text-sm font-medium text-red-600">
-                    PayPal is not configured. Please contact support.
-                  </p>
                 )}
               </div>
 

@@ -1,6 +1,4 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 namespace App\Controllers;
 
@@ -23,7 +21,7 @@ final class PaymentController
         global $config;
         $this->payments = $payments ?? new PaymentRepository();
         $this->paypal = $paypal ?? new PayPalClient();
-        $this->currency = $config['paypal']['currency'];
+        $this->currency = (string) ($config['paypal']['currency'] ?? 'USD');
     }
 
     public function createOrder(Request $request, array $user, Response $response): never
@@ -46,9 +44,23 @@ final class PaymentController
                 $this->currency
             );
         } catch (\Throwable $exception) {
-            error_log('PayPal payment initialization failed: ' . $exception->getMessage());
-            $response->error('Unable to initialize a PayPal payment.', 503);
+            error_log(
+                'PayPal order creation failed: '
+                . $exception->getMessage()
+            );
+
+            try {
+                $this->payments->markFailed($uniqueKey);
+            } catch (\Throwable $databaseException) {
+                error_log(
+                    'Failed to update payment status: '
+                    . $databaseException->getMessage()
+                );
+            }
+
+            $response->error('Unable to create a PayPal order.', 502);
         }
+
         if ($payment === null) {
             $response->error('Published paid course not found.', 404);
         }
@@ -101,17 +113,20 @@ final class PaymentController
             $captureId = is_array($capture) ? ($capture['id'] ?? null) : null;
             $captureAmount = is_array($capture) ? ($capture['amount'] ?? null) : null;
             $purchaseUnit = $order['purchase_units'][0] ?? [];
+            $customId = $purchaseUnit['custom_id']
+                ?? ($capture['custom_id'] ?? null)
+                ?? ($purchaseUnit['reference_id'] ?? null);
 
             if (
-                ($order['id'] ?? null) !== $payment['paypal_order_id']
-                || ($order['status'] ?? null) !== 'COMPLETED'
-                || ($purchaseUnit['custom_id'] ?? null) !== $uniqueKey
-                || !is_string($captureId)
-                || ($capture['status'] ?? null) !== 'COMPLETED'
-                || !is_array($captureAmount)
-                || ($captureAmount['currency_code'] ?? null) !== $payment['currency']
-                || number_format((float) ($captureAmount['value'] ?? -1), 2, '.', '')
-                    !== number_format((float) $payment['amount'], 2, '.', '')
+                ($order['id'] ?? null) !== $payment['paypal_order_id'] ||
+                ($order['status'] ?? null) !== 'COMPLETED' ||
+                $customId !== $uniqueKey ||
+                !is_string($captureId) ||
+                ($capture['status'] ?? null) !== 'COMPLETED' ||
+                !is_array($captureAmount) ||
+                ($captureAmount['currency_code'] ?? null) !== $payment['currency'] ||
+                number_format((float) ($captureAmount['value'] ?? -1), 2, '.', '') !==
+                    number_format((float) $payment['amount'], 2, '.', '')
             ) {
                 throw new RuntimeException('PayPal capture details did not match the payment.');
             }
@@ -131,10 +146,10 @@ final class PaymentController
         $eventId = $event['id'] ?? null;
         $eventType = $event['event_type'] ?? null;
         if (
-            !is_string($eventId)
-            || $eventId === ''
-            || !is_string($eventType)
-            || $eventType === ''
+            !is_string($eventId) ||
+            $eventId === '' ||
+            !is_string($eventType) ||
+            $eventType === ''
         ) {
             $response->error('Invalid PayPal webhook event.', 400);
         }
@@ -170,18 +185,18 @@ final class PaymentController
             : null;
         $amount = is_array($capture) ? ($capture['amount'] ?? null) : null;
         if (
-            !is_array($capture)
-            || ($capture['status'] ?? null) !== 'COMPLETED'
-            || !is_string($capture['id'] ?? null)
-            || $capture['id'] === ''
-            || !is_array($relatedIds)
-            || !is_string($relatedIds['order_id'] ?? null)
-            || $relatedIds['order_id'] === ''
-            || !is_array($amount)
-            || !is_string($amount['value'] ?? null)
-            || !preg_match('/^\d+(?:\.\d{1,2})?$/D', $amount['value'])
-            || !is_string($amount['currency_code'] ?? null)
-            || $amount['currency_code'] === ''
+            !is_array($capture) ||
+            ($capture['status'] ?? null) !== 'COMPLETED' ||
+            !is_string($capture['id'] ?? null) ||
+            $capture['id'] === '' ||
+            !is_array($relatedIds) ||
+            !is_string($relatedIds['order_id'] ?? null) ||
+            $relatedIds['order_id'] === '' ||
+            !is_array($amount) ||
+            !is_string($amount['value'] ?? null) ||
+            !preg_match('/^\d+(?:\.\d{1,2})?$/D', $amount['value']) ||
+            !is_string($amount['currency_code'] ?? null) ||
+            $amount['currency_code'] === ''
         ) {
             $response->error('Invalid PayPal capture event.', 400);
         }
@@ -204,8 +219,8 @@ final class PaymentController
     private function uuid(): string
     {
         $bytes = random_bytes(16);
-        $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
-        $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+        $bytes[6] = chr((ord($bytes[6]) & 0xF) | 0x40);
+        $bytes[8] = chr((ord($bytes[8]) & 0x3F) | 0x80);
 
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
     }
