@@ -3,6 +3,7 @@
 import { Search, X } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
+import { formatUsd } from "@/lib/currency";
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -92,10 +93,10 @@ export default function SearchModal({ isOpen, onClose, products }: SearchModalPr
                       </h3>
                       <div className="flex items-center gap-2 mt-2">
                         <span className="font-bold text-slate-900">
-                          ₹{product.price}
+                          {formatUsd(product.price)}
                         </span>
                         <span className="text-xs text-slate-400 line-through">
-                          ₹{product.oldPrice}
+                          {formatUsd(product.oldPrice)}
                         </span>
                         <span className="text-xs font-semibold text-red-600">
                           -{product.discount}%

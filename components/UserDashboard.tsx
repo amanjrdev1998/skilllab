@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { formatUsd } from "@/lib/currency";
 
 type User = { name: string; email: string };
 
@@ -165,9 +166,7 @@ export default function UserDashboard({ user }: { user: User }) {
               const course: Course = {
                 id: enrollment.course_id,
                 title: enrollment.title,
-                price: enrollment.price_paid
-                  ? `₹${Number(enrollment.price_paid).toLocaleString("en-IN")}`
-                  : "",
+                price: enrollment.price_paid ? formatUsd(enrollment.price_paid) : "",
                 progress: enrollment.progress,
                 lessons: `${enrollment.lessons_count} lessons`,
                 status: enrollment.status,

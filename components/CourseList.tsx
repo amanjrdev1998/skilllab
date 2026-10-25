@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, Check, Copy, Eye, FileText, Gift, X } from "lucide-react";
 import Link from "next/link";
+import { formatUsd } from "@/lib/currency";
 
 type Course = {
   id: number;
@@ -176,7 +177,7 @@ export default function CourseList({ userName = "Learner" }: { userName?: string
                     : "bg-amber-50 text-amber-700"
               }`}>{course.status === "pending" ? "Pending Approval" : course.status}</span>
               <div><div className="flex items-center justify-between text-xs font-semibold text-slate-500"><span>{course.progress > 0 ? "In progress" : "Not started"}</span><span>{course.progress}%</span></div><div className="mt-2 h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-600" style={{ width: `${course.progress}%` }} /></div></div>
-              <span className="text-lg font-black text-slate-950">{course.price === null ? "—" : `₹${Number(course.price).toLocaleString("en-IN")}`}</span>
+              <span className="text-lg font-black text-slate-950">{formatUsd(course.price)}</span>
               <button type="button" onClick={() => openReader(course)} aria-label={`View PDF for ${course.title}`} title="Open PDF reader" className="inline-flex w-fit items-center justify-center rounded-lg border border-slate-300 p-2.5 text-slate-600 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 md:ml-auto"><Eye className="h-5 w-5" /></button>
             </div>
           ))}

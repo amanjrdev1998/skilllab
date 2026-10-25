@@ -12,9 +12,9 @@ import {
 import {
   approveAdminEnrollment,
   AdminDashboardData,
-  formatRupees,
   loadAdminDashboard,
 } from "@/lib/admin";
+import { formatUsd } from "@/lib/currency";
 
 export default function AdminStudentList() {
   const [data, setData] = useState<AdminDashboardData | null>(null);
@@ -332,7 +332,7 @@ export default function AdminStudentList() {
 
                     {/* Amount */}
                     <td className="px-5 py-4 font-semibold text-slate-800">
-                      {formatRupees(enrollment.price_paid)}
+                      {formatUsd(enrollment.price_paid)}
                     </td>
 
                     {/* UTR */}

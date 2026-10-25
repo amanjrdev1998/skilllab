@@ -8,6 +8,7 @@ use App\Controllers\AuthController;
 use App\Controllers\CourseController;
 use App\Controllers\EnrollmentController;
 use App\Controllers\AdminController;
+use App\Controllers\PaymentController;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Router;
@@ -22,6 +23,7 @@ final class ApiRoutes
         $courses = new CourseController();
         $enrollments = new EnrollmentController();
         $admin = new AdminController();
+        $payments = new PaymentController();
 
         $guard = new AuthMiddleware();
         $adminGuard = new AdminMiddleware();
@@ -110,6 +112,28 @@ final class ApiRoutes
             Response $response
         ) use ($enrollments, $guard): never {
             $enrollments->index(
+                $guard->user($request, $response),
+                $response
+            );
+        });
+
+        $router->post('/api/v1/payments/paypal/orders', static function (
+            Request $request,
+            Response $response
+        ) use ($payments, $guard): never {
+            $payments->createOrder(
+                $request,
+                $guard->user($request, $response),
+                $response
+            );
+        });
+
+        $router->post('/api/v1/payments/paypal/capture', static function (
+            Request $request,
+            Response $response
+        ) use ($payments, $guard): never {
+            $payments->captureOrder(
+                $request,
                 $guard->user($request, $response),
                 $response
             );

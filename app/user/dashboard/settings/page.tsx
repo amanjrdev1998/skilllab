@@ -1,14 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Bell, BookOpen, Check, ChevronRight, CircleHelp, LockKeyhole, Mail, UserRound } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { readAuthenticatedUser, type AuthenticatedUser } from "@/lib/auth";
 
-type User = { name: string; email: string };
 type PreferenceKey = "courseUpdates" | "weeklyDigest" | "streakReminders";
 type Preferences = Record<PreferenceKey, boolean>;
 
-const defaultUser: User = { name: "Learner", email: "learner@example.com" };
 const defaultPreferences: Preferences = {
 	courseUpdates: true,
 	weeklyDigest: true,
@@ -27,32 +27,36 @@ const preferences: Array<{
 ];
 
 export default function UserSettingsPage() {
-	const [user, setUser] = useState<User | null>(null);
+	const [user, setUser] = useState<AuthenticatedUser | null>(null);
 	const [fullName, setFullName] = useState("");
 	const [saved, setSaved] = useState(false);
 	const [error, setError] = useState("");
 	const [settings, setSettings] = useState<Preferences>(defaultPreferences);
+	const router = useRouter();
 
 	useEffect(() => {
-		const userData = localStorage.getItem("userData");
-		const storedPreferences = localStorage.getItem("learningPreferences");
-		let storedUser = defaultUser;
-
-		try {
-			if (userData) storedUser = { ...defaultUser, ...JSON.parse(userData) };
-		} catch {
-			localStorage.removeItem("userData");
+		const authenticatedUser = readAuthenticatedUser();
+		if (!authenticatedUser) {
+			router.replace("/user");
+			return;
 		}
 
-		setUser(storedUser);
-		setFullName(storedUser.name);
+		const storedPreferences = localStorage.getItem("learningPreferences");
+		let storedSettings = defaultPreferences;
 
 		try {
-			if (storedPreferences) setSettings({ ...defaultPreferences, ...JSON.parse(storedPreferences) });
+			if (storedPreferences) storedSettings = { ...defaultPreferences, ...JSON.parse(storedPreferences) };
 		} catch {
 			localStorage.removeItem("learningPreferences");
 		}
-	}, []);
+
+		const timeoutId = window.setTimeout(() => {
+			setUser(authenticatedUser);
+			setFullName(authenticatedUser.name);
+			setSettings(storedSettings);
+		}, 0);
+		return () => window.clearTimeout(timeoutId);
+	}, [router]);
 
 	const saveProfile = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -65,7 +69,7 @@ export default function UserSettingsPage() {
 		}
 
 		const updatedUser = { ...user, name: trimmedName };
-		localStorage.setItem("userData", JSON.stringify(updatedUser));
+		localStorage.setItem("user", JSON.stringify(updatedUser));
 		setUser(updatedUser);
 		setFullName(trimmedName);
 		setError("");
@@ -85,7 +89,7 @@ export default function UserSettingsPage() {
 		return <div className="flex min-h-screen items-center justify-center bg-[#f5f7f9]"><div className="h-10 w-10 animate-spin rounded-full border-4 border-orange-100 border-t-orange-600" /></div>;
 	}
 
-	const initials = user.name.trim().charAt(0).toUpperCase() || "L";
+	const initials = user.name.trim().charAt(0).toUpperCase();
 
 	return (
 		<DashboardLayout user={user}>

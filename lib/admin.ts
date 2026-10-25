@@ -87,15 +87,3 @@ export async function approveAdminEnrollment(
     throw new Error(payload.message ?? "Unable to approve enrollment.");
   }
 }
-
-export function formatRupees(amount: number | string | null): string {
-  if (amount === null) {
-    return "—";
-  }
-
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(Number(amount));
-}

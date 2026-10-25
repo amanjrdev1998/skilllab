@@ -4,37 +4,23 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import UserCalendar from "@/components/UserCalendar";
-
-type User = {
-  name: string;
-  email: string;
-};
+import { readAuthenticatedUser, type AuthenticatedUser } from "@/lib/auth";
 
 export default function UserCalendarPage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthenticatedUser | null>(null);
 
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem("isAuthenticated");
-    const userData = localStorage.getItem("userData");
-
-    // Redirect to login if user is unauthenticated
-    // Remove comments below if authentication check is required
-    /*
-    if (!isAuthenticated) {
-      router.push("/login");
+    const authenticatedUser = readAuthenticatedUser();
+    if (!authenticatedUser) {
+      router.replace("/user");
       return;
     }
-    */
 
-    setUser(
-      userData
-        ? JSON.parse(userData)
-        : { name: "Learner", email: "learner@example.com" }
-    );
+    const timeoutId = window.setTimeout(() => setUser(authenticatedUser), 0);
+    return () => window.clearTimeout(timeoutId);
   }, [router]);
 
-  // Loading spinner during hydration/auth check
   if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">

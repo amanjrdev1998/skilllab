@@ -2,31 +2,32 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { Mail, Send } from "lucide-react";
+import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
-
-type User = { name: string; email: string };
+import { readAuthenticatedUser, type AuthenticatedUser } from "@/lib/auth";
 
 const supportEmail = "info.skilllab@gmail.com";
-const defaultUser: User = { name: "Learner", email: "learner@example.com" };
 
 export default function HelpPage() {
-	const [user, setUser] = useState<User | null>(null);
+	const router = useRouter();
+	const [user, setUser] = useState<AuthenticatedUser | null>(null);
 	const [subject, setSubject] = useState("");
 	const [message, setMessage] = useState("");
 
 	useEffect(() => {
-		const userData = localStorage.getItem("userData");
-		try {
-			setUser(userData ? { ...defaultUser, ...JSON.parse(userData) } : defaultUser);
-		} catch {
-			setUser(defaultUser);
+		const authenticatedUser = readAuthenticatedUser();
+		if (!authenticatedUser) {
+			router.replace("/user");
+			return;
 		}
-	}, []);
+		const timeoutId = window.setTimeout(() => setUser(authenticatedUser), 0);
+		return () => window.clearTimeout(timeoutId);
+	}, [router]);
 
 	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		const emailSubject = encodeURIComponent(subject || "Help with my SkillLab account");
-		const emailBody = encodeURIComponent(message || `Hello SkillLab support,\n\nMy name is ${user?.name ?? "Learner"}.`);
+		const emailBody = encodeURIComponent(message || `Hello SkillLab support,\n\nMy name is ${user?.name}.`);
 		window.location.href = `mailto:${supportEmail}?subject=${emailSubject}&body=${emailBody}`;
 	};
 

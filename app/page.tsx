@@ -30,10 +30,10 @@ type CoursesResponse = {
 const formatPrice = (price: number | string | null) =>
   price === null
     ? ""
-    : new Intl.NumberFormat("en-IN", {
+    : new Intl.NumberFormat("en-US", {
         style: "currency",
-        currency: "INR",
-        maximumFractionDigits: 0,
+        currency: "USD",
+        maximumFractionDigits: 2,
       }).format(Number(price));
 
 const formatStudents = (students: number) =>

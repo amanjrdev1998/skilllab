@@ -3,6 +3,7 @@
 import { X, ShoppingCart, Trash2 } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
+import { formatUsd } from "@/lib/currency";
 
 interface CartItem {
   id: number;
@@ -92,7 +93,7 @@ export default function CartModal({
                         {item.name}
                       </h4>
                       <p className="text-sm font-bold text-slate-900 mt-1">
-                        ₹{item.price}
+                        {formatUsd(item.price)}
                       </p>
                     </div>
 
@@ -150,15 +151,15 @@ export default function CartModal({
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-slate-600">
                 <span>Subtotal</span>
-                <span>₹{total}</span>
+                <span>{formatUsd(total)}</span>
               </div>
               <div className="flex justify-between text-green-600 font-semibold">
                 <span>Discount (10%)</span>
-                <span>-₹{discount}</span>
+                <span>-{formatUsd(discount)}</span>
               </div>
               <div className="border-t border-slate-200 pt-2 flex justify-between font-bold text-slate-900">
                 <span>Total</span>
-                <span>₹{finalTotal}</span>
+                <span>{formatUsd(finalTotal)}</span>
               </div>
             </div>
 

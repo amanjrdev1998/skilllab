@@ -2,6 +2,7 @@
 
 import { X, Heart, ShoppingCart } from "lucide-react";
 import Image from "next/image";
+import { formatUsd } from "@/lib/currency";
 
 interface WishlistProduct {
   id: number;
@@ -101,11 +102,11 @@ export default function WishlistModal({
                       </h4>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-sm font-bold text-slate-900">
-                          ₹{item.price}
+                          {formatUsd(item.price)}
                         </span>
                         {item.oldPrice && (
                           <span className="text-xs text-slate-400 line-through">
-                            ₹{item.oldPrice}
+                            {formatUsd(item.oldPrice)}
                           </span>
                         )}
                       </div>

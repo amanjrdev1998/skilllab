@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Search } from "lucide-react";
 import { AdminCourse, loadAdminDashboard } from "@/lib/admin";
+import { formatUsd } from "@/lib/currency";
 
 export default function AdminCourseList() {
   const [courses, setCourses] = useState<AdminCourse[]>([]);
@@ -98,7 +99,7 @@ export default function AdminCourseList() {
                   <td className="px-5 py-4 text-slate-600">{course.category}</td>
                   <td className="px-5 py-4 text-slate-600">{course.lessons_count}</td>
                   <td className="px-5 py-4 text-slate-600">{course.students_count}</td>
-                  <td className="px-5 py-4 font-semibold text-slate-800">₹{Number(course.price).toLocaleString("en-IN")}</td>
+                  <td className="px-5 py-4 font-semibold text-slate-800">{formatUsd(course.price)}</td>
                   <td className="px-5 py-4"><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold capitalize text-emerald-700">{course.status}</span></td>
                 </tr>
               ))}

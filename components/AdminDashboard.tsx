@@ -5,9 +5,9 @@ import { BookOpen, Check, GraduationCap, Loader2, Users } from "lucide-react";
 import {
   approveAdminEnrollment,
   AdminDashboardData,
-  formatRupees,
   loadAdminDashboard,
 } from "@/lib/admin";
+import { formatUsd } from "@/lib/currency";
 
 type LoadState =
   | { status: "loading" }
@@ -147,7 +147,7 @@ export default function AdminDashboard() {
                   <td className="px-5 py-4 font-bold text-slate-900">{course.title}</td>
                   <td className="px-5 py-4 text-slate-600">{course.category}</td>
                   <td className="px-5 py-4 text-slate-600">{course.lessons_count}</td>
-                  <td className="px-5 py-4 font-semibold text-slate-800">{formatRupees(course.price)}</td>
+                  <td className="px-5 py-4 font-semibold text-slate-800">{formatUsd(course.price)}</td>
                   <td className="px-5 py-4"><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold capitalize text-emerald-700">{course.status}</span></td>
                 </tr>
               ))}
@@ -263,7 +263,7 @@ export default function AdminDashboard() {
 
                   {/* Amount */}
                   <td className="px-5 py-4 font-semibold text-slate-800">
-                    {formatRupees(enrollment.price_paid)}
+                    {formatUsd(enrollment.price_paid)}
                   </td>
 
                   {/* UTR */}

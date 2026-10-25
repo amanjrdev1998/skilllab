@@ -26,4 +26,10 @@ return [
         'user' => $_ENV['DB_USER'] ?? 'root',
         'password' => $_ENV['DB_PASSWORD'] ?? '',
     ],
+    'paypal' => [
+        'environment' => $_ENV['PAYPAL_ENV'] ?? 'sandbox',
+        'client_id' => $_ENV['PAYPAL_CLIENT_ID'] ?? '',
+        'client_secret' => $_ENV['PAYPAL_CLIENT_SECRET'] ?? '',
+        'currency' => strtoupper($_ENV['PAYPAL_CURRENCY'] ?? 'USD'),
+    ],
 ];

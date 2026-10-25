@@ -18,7 +18,9 @@ A framework-free PHP REST API for the SkillLab Next.js frontend.
 1. Copy `backend/.env.example` to `backend/.env` and update the MySQL values.
 2. Create the database named in `DB_NAME`.
 3. Run `backend/database/migrations/001_create_tables.sql`.
-4. Start the API from the repository root:
+4. Run `backend/database/migrations/002_create_payment_transactions.sql`.
+5. Set `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` in `backend/.env` using PayPal sandbox credentials for testing. Set `PAYPAL_ENV=live` only when ready to accept real payments. The PHP cURL extension must be enabled.
+6. Start the API from the repository root:
 
 ```bash
 php -S localhost:8000 -t backend/public backend/public/index.php
@@ -35,6 +37,8 @@ The API is available at `http://localhost:8000/api/v1`.
 - `GET /courses` for the published public course catalog
 - `POST /enrollments` with `{ "course_id" }` and an authenticated bearer token to create a pending enrollment for a published course
 - `GET /enrollments` with an authenticated bearer token to list the current user's non-cancelled enrollments
+- `POST /payments/paypal/orders` with `{ "course_id" }` and an authenticated bearer token to create an order for a published paid course. The backend derives the amount from the course record and returns `order_id` and `unique_key`.
+- `POST /payments/paypal/capture` with `{ "unique_key" }` and an authenticated bearer token to verify/capture the PayPal order and activate the enrollment. The payment must belong to the authenticated user.
 - `GET /admin/dashboard` with an administrator bearer token for published courses, student accounts, and all enrollments
 - `POST /admin/enrollments/{id}/approve` with an administrator bearer token to change a pending enrollment to `active`
 
