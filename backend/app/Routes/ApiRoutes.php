@@ -6,6 +6,7 @@ namespace App\Routes;
 
 use App\Controllers\AuthController;
 use App\Controllers\CourseController;
+use App\Controllers\CoursePdfController;
 use App\Controllers\EnrollmentController;
 use App\Controllers\AdminController;
 use App\Controllers\PaymentController;
@@ -21,6 +22,7 @@ final class ApiRoutes
     {
         $auth = new AuthController();
         $courses = new CourseController();
+        $coursePdfs = new CoursePdfController();
         $enrollments = new EnrollmentController();
         $admin = new AdminController();
         $payments = new PaymentController();
@@ -94,6 +96,27 @@ final class ApiRoutes
             }
 
             $courses->show($response, $id);
+        });
+
+        // Stream the course PDF (auth + active enrollment required).
+        // The file itself is never reachable by direct URL.
+        $router->get('/api/v1/courses/{id}/pdf', static function (
+            Request $request,
+            Response $response,
+            array $parameters
+        ) use ($coursePdfs, $guard): never {
+            $id = filter_var(
+                $parameters[0] ?? null,
+                FILTER_VALIDATE_INT
+            );
+            if ($id === false || $id < 1) {
+                $response->error('Invalid course id.', 400);
+            }
+            $coursePdfs->stream(
+                $id,
+                $guard->user($request, $response),
+                $response
+            );
         });
 
         $router->post('/api/v1/enrollments', static function (
@@ -218,6 +241,29 @@ final class ApiRoutes
         ) use ($admin, $adminGuard): never {
             $adminGuard->user($request, $response);
             $admin->listCourses($response);
+        });
+
+        // List PDF files available in backend/storage/pdfs/
+        $router->get('/api/v1/admin/pdfs', static function (
+            Request $request,
+            Response $response
+        ) use ($coursePdfs, $adminGuard): never {
+            $adminGuard->user($request, $response);
+            $coursePdfs->listFiles($response);
+        });
+
+        // Upload a PDF and bind it to a course (multipart field "pdf")
+        $router->post('/api/v1/admin/courses/{id}/pdf', static function (
+            Request $request,
+            Response $response,
+            array $parameters
+        ) use ($coursePdfs, $adminGuard): never {
+            $adminUser = $adminGuard->user($request, $response);
+            $courseId = filter_var($parameters[0] ?? null, FILTER_VALIDATE_INT);
+            if ($courseId === false || $courseId < 1) {
+                $response->error('Invalid course id.', 400);
+            }
+            $coursePdfs->upload($courseId, $adminUser, $response);
         });
 
         $router->post('/api/v1/admin/courses', static function (

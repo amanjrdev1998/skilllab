@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { BookOpen, Check, Copy, Eye, FileText, Gift, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BookOpen, Check, Copy, Eye, Gift, X } from "lucide-react";
 import Link from "next/link";
 import { formatUsd } from "@/lib/currency";
 
@@ -15,7 +15,7 @@ type Course = {
   price: string | null;
   status: "pending" | "active" | "completed";
   progress: number;
-  pdfUrl?: string;
+  hasPdf: boolean;
 };
 
 type Enrollment = {
@@ -53,12 +53,9 @@ export default function CourseList({ userName = "Learner" }: { userName?: string
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [pdfUrl, setPdfUrl] = useState("");
   const [referralOpen, setReferralOpen] = useState(false);
   const [referralCopied, setReferralCopied] = useState(false);
   const [copiedCourseId, setCopiedCourseId] = useState<number | null>(null);
-  const objectUrlRef = useRef<string | null>(null);
   const referralCode = referralCodeFor(userName);
 
   useEffect(() => {
@@ -92,7 +89,7 @@ export default function CourseList({ userName = "Learner" }: { userName?: string
           price: enrollment.price_paid,
           status: enrollment.status,
           progress: enrollment.progress,
-          pdfUrl: enrollment.pdf_url ?? undefined,
+          hasPdf: Boolean(enrollment.pdf_url),
         })));
       } catch {
         setLoadError("Unable to load your purchased courses right now.");
@@ -103,31 +100,6 @@ export default function CourseList({ userName = "Learner" }: { userName?: string
 
     void loadCourses();
   }, []);
-
-  useEffect(() => {
-    return () => {
-      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    };
-  }, []);
-
-  const openReader = (course: Course) => {
-    setSelectedCourse(course);
-    setPdfUrl(course.pdfUrl ?? "");
-  };
-
-  const closeReader = () => {
-    setSelectedCourse(null);
-    setPdfUrl("");
-  };
-
-  const handlePdfFile = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    objectUrlRef.current = URL.createObjectURL(file);
-    setPdfUrl(objectUrlRef.current);
-  };
 
   const copyReferralCode = async () => {
     await navigator.clipboard.writeText(referralCode);
@@ -178,21 +150,15 @@ export default function CourseList({ userName = "Learner" }: { userName?: string
               }`}>{course.status === "pending" ? "Pending Approval" : course.status}</span>
               <div><div className="flex items-center justify-between text-xs font-semibold text-slate-500"><span>{course.progress > 0 ? "In progress" : "Not started"}</span><span>{course.progress}%</span></div><div className="mt-2 h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-600" style={{ width: `${course.progress}%` }} /></div></div>
               <span className="text-lg font-black text-slate-950">{formatUsd(course.price)}</span>
-              <button type="button" onClick={() => openReader(course)} aria-label={`View PDF for ${course.title}`} title="Open PDF reader" className="inline-flex w-fit items-center justify-center rounded-lg border border-slate-300 p-2.5 text-slate-600 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 md:ml-auto"><Eye className="h-5 w-5" /></button>
+              {course.hasPdf ? (
+                <Link href={`/course-pdf/${course.id}`} aria-label={`View PDF for ${course.title}`} title="Open protected PDF reader" className="inline-flex w-fit items-center justify-center rounded-lg border border-slate-300 p-2.5 text-slate-600 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 md:ml-auto"><Eye className="h-5 w-5" /></Link>
+              ) : (
+                <span className="inline-flex w-fit cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 p-2.5 text-slate-300 md:ml-auto" title="No PDF attached to this course"><Eye className="h-5 w-5" /></span>
+              )}
             </div>
           ))}
         </div>
       </section>
-
-      {selectedCourse && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="course-pdf-title">
-          <div className="flex h-[min(760px,calc(100vh-2rem))] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-600">Course PDF</p><h2 id="course-pdf-title" className="text-xl font-black text-slate-950">{selectedCourse.title}</h2></div><button type="button" onClick={closeReader} aria-label="Close PDF reader" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
-            <div className="grid gap-3 border-b border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1fr_auto]"><input type="url" value={pdfUrl} onChange={(event) => setPdfUrl(event.target.value)} placeholder="Paste a public PDF URL" className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" /><label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-indigo-400 hover:text-indigo-600"><FileText className="h-4 w-4" /> Choose PDF<input type="file" accept="application/pdf" onChange={handlePdfFile} className="sr-only" /></label></div>
-            <div className="min-h-0 flex-1 bg-slate-100 p-3">{pdfUrl ? <iframe src={pdfUrl} title={`${selectedCourse.title} PDF reader`} className="h-full w-full rounded-lg border border-slate-200 bg-white" /> : <div className="flex h-full items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-white p-8 text-center"><div><FileText className="mx-auto h-12 w-12 text-slate-300" /><p className="mt-4 font-bold text-slate-700">No PDF selected</p><p className="mt-1 text-sm text-slate-500">Choose a PDF file or paste a public URL above.</p></div></div>}</div>
-          </div>
-        </div>
-      )}
 
       {referralOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="referral-title">

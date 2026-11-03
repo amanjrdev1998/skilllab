@@ -19,7 +19,8 @@ A framework-free PHP REST API for the SkillLab Next.js frontend.
 2. Create the database named in `DB_NAME`.
 3. Run `backend/database/migrations/001_create_tables.sql`.
 4. Run `backend/database/migrations/002_create_payment_transactions.sql`.
-5. Run `backend/database/migrations/003_seed_admin.sql` — creates the admin login
+5. Run `backend/database/migrations/003_seed_admin.sql
+- `004_bind_course_pdfs.sql` — binds each course PDF filename (`backend/storage/pdfs/*.pdf`) to its course (`courses.pdf_url`)` — creates the admin login
    (`admin@skilllab.com` / `skilllab@123`; change the password after first login).
 6. Set `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` in `backend/.env` using PayPal sandbox credentials for testing. Set `PAYPAL_ENV=live` only when ready to accept real payments. The PHP cURL extension must be enabled.
 7. Set `NEXT_PUBLIC_PAYPAL_CLIENT_ID` in the Next.js environment to the same PayPal app client ID used by the backend.
@@ -51,6 +52,13 @@ The API is available at `http://localhost:8000/api/v1`.
 - `POST /admin/courses` with an administrator bearer token to create a course
 - `PUT /admin/courses/{id}` with an administrator bearer token to update a course
 - `DELETE /admin/courses/{id}` with an administrator bearer token to delete a course
+- `GET /api/v1/courses/{id}/pdf` with an authenticated bearer token to stream the course's bound PDF inline. Requires an active (non-cancelled) enrollment for the course; admins bypass the enrollment check. The PDF bytes are never reachable by direct URL.
+- `GET /api/v1/admin/pdfs` with an administrator bearer token to list PDF filenames in `backend/storage/pdfs/`
+- `POST /api/v1/admin/courses/{id}/pdf` with an administrator bearer token and multipart field `pdf` to upload a PDF (max 25 MB) and bind it to the course
+
+## Course PDFs (protected)
+
+PDFs live in `backend/storage/pdfs/` — outside the web root, so no direct URL can ever download them. `courses.pdf_url` stores only the file name. Migration `004_bind_course_pdfs.sql` binds the five shipped PDFs to their courses. Students open them at `/course-pdf/{id}` in the frontend, which renders pages with PDF.js (no download/print buttons, right-click disabled) after an authenticated, enrollment-checked fetch.
 
 All responses use `{ "success": boolean, "data": ... }`. Authenticated endpoints require the token returned from register or login.
 

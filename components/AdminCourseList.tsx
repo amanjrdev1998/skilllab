@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { BookOpen, FileText, Pencil, Plus, Search, Trash2, Upload, X } from "lucide-react";
 import {
   AdminCourse,
   AdminCourseInput,
   createAdminCourse,
   deleteAdminCourse,
+  listStoragePdfs,
   loadAdminCourses,
   updateAdminCourse,
+  uploadCoursePdf,
 } from "@/lib/admin";
 import { formatUsd } from "@/lib/currency";
 
@@ -23,6 +25,7 @@ const emptyForm: AdminCourseInput = {
   level: "Beginner",
   badge: "",
   status: "draft",
+  pdf_url: "",
 };
 
 function statusBadge(status: string) {
@@ -48,6 +51,8 @@ export default function AdminCourseList() {
   const [form, setForm] = useState<AdminCourseInput>(emptyForm);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [storagePdfs, setStoragePdfs] = useState<string[]>([]);
+  const [pendingPdf, setPendingPdf] = useState<File | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   async function reload() {
@@ -87,9 +92,17 @@ export default function AdminCourseList() {
     );
   }, [courses, query]);
 
+  useEffect(() => {
+    if (!modalOpen) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    listStoragePdfs(token).then(setStoragePdfs).catch(() => setStoragePdfs([]));
+  }, [modalOpen]);
+
   function openAdd() {
     setEditing(null);
     setForm(emptyForm);
+    setPendingPdf(null);
     setFormError("");
     setModalOpen(true);
   }
@@ -107,7 +120,9 @@ export default function AdminCourseList() {
       level: "Beginner",
       badge: "",
       status: course.status === "published" ? "published" : "draft",
+      pdf_url: course.pdf_url ?? "",
     });
+    setPendingPdf(null);
     setFormError("");
     setModalOpen(true);
   }
@@ -129,12 +144,14 @@ export default function AdminCourseList() {
     setSaving(true);
     setFormError("");
     try {
+      let savedId: number;
       if (editing) {
         const updated = await updateAdminCourse(token, editing.id, {
           ...form,
           title: form.title.trim(),
           category: form.category.trim(),
         });
+        savedId = updated.id;
         setCourses((prev) => prev.map((c) => (c.id === editing.id ? { ...c, ...updated } : c)));
       } else {
         const created = await createAdminCourse(token, {
@@ -142,9 +159,15 @@ export default function AdminCourseList() {
           title: form.title.trim(),
           category: form.category.trim(),
         });
+        savedId = created.id;
         setCourses((prev) => [created, ...prev]);
       }
+      if (pendingPdf) {
+        const { course: withPdf } = await uploadCoursePdf(token, savedId, pendingPdf);
+        setCourses((prev) => prev.map((c) => (c.id === savedId ? { ...c, ...withPdf } : c)));
+      }
       setModalOpen(false);
+      setPendingPdf(null);
     } catch (saveError) {
       setFormError(saveError instanceof Error ? saveError.message : "Unable to save course.");
     } finally {
@@ -231,7 +254,7 @@ export default function AdminCourseList() {
             <tbody className="divide-y divide-slate-100">
               {filteredCourses.map((course) => (
                 <tr key={course.id}>
-                  <td className="px-5 py-4 font-bold text-slate-900"><span className="inline-flex items-center gap-2"><BookOpen className="h-4 w-4 text-orange-500" />{course.title}</span></td>
+                  <td className="px-5 py-4 font-bold text-slate-900"><span className="inline-flex items-center gap-2"><BookOpen className="h-4 w-4 text-orange-500" />{course.title}{course.pdf_url ? <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700"><FileText className="h-3 w-3" />PDF</span> : null}</span></td>
                   <td className="px-5 py-4 text-slate-600">{course.category}</td>
                   <td className="px-5 py-4 text-slate-600">{course.lessons_count}</td>
                   <td className="px-5 py-4 text-slate-600">{course.students_count}</td>
@@ -330,6 +353,31 @@ export default function AdminCourseList() {
                   <option value="archived">Archived</option>
                 </select>
               </div>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Course PDF (protected)</label>
+              <p className="mb-3 text-xs leading-5 text-slate-500">Students read it in a protected viewer where downloading and printing are disabled. Pick an uploaded PDF or upload a new one.</p>
+              <select className={inputCls} value={form.pdf_url ?? ""} onChange={(e) => { setField("pdf_url", e.target.value || null); setPendingPdf(null); }}>
+                <option value="">No PDF attached</option>
+                {storagePdfs.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:border-orange-400 hover:text-orange-600">
+                <Upload className="h-4 w-4" /> {pendingPdf ? "Change file" : "Upload new PDF"}
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    setPendingPdf(file);
+                    if (file) setField("pdf_url", null);
+                  }}
+                />
+              </label>
+              {pendingPdf && <p className="mt-2 text-xs text-slate-500">Will upload on save: <span className="font-bold text-slate-700">{pendingPdf.name}</span></p>}
             </div>
 
             <div className="mt-6 flex justify-end gap-3">

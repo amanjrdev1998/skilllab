@@ -39,6 +39,17 @@ final class EnrollmentRepository
             : null;
     }
 
+    public function hasActiveEnrollment(int $userId, int $courseId): bool
+    {
+        $statement = $this->database()->prepare(
+            "SELECT 1 FROM enrollments
+             WHERE user_id = :user_id AND course_id = :course_id
+               AND status != 'cancelled' LIMIT 1"
+        );
+        $statement->execute(['user_id' => $userId, 'course_id' => $courseId]);
+        return $statement->fetch() !== false;
+    }
+
     public function forUser(int $userId): array
     {
         $statement = $this->database()->prepare(

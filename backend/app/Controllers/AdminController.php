@@ -154,7 +154,28 @@ final class AdminController
             'level' => $level,
             'badge' => trim((string) $request->input('badge', '')) ?: null,
             'status' => $status,
+            'pdf_url' => $this->validatePdfFileName($request->input('pdf_url', null), $response),
         ];
+    }
+
+    /**
+     * Accept only a plain PDF filename that already exists in backend/storage/pdfs/.
+     * Returns the clean filename or null.
+     */
+    private function validatePdfFileName(mixed $value, \App\Core\Response $response): ?string
+    {
+        $name = trim((string) ($value ?? ''));
+        if ($name === '') {
+            return null;
+        }
+        if (!preg_match('/^[A-Za-z0-9._-]+\.pdf$/i', $name)) {
+            $response->error('pdf_url must be a plain PDF file name (e.g. course-guide.pdf).', 422);
+        }
+        $storage = realpath(__DIR__ . '/../../storage/pdfs');
+        if ($storage === false || !is_file($storage . DIRECTORY_SEPARATOR . basename($name))) {
+            $response->error('The selected PDF does not exist in storage/pdfs/. Upload it first.', 422);
+        }
+        return basename($name);
     }
 
     private function uniqueSlug(string $slug, string $title, ?int $ignoreId = null): string

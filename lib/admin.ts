@@ -16,6 +16,7 @@ export type AdminCourse = {
   price: number | string;
   students_count: number;
   status: "published";
+  pdf_url: string | null;
 };
 
 export type AdminEnrollment = {
@@ -99,6 +100,7 @@ export type AdminCourseInput = {
   level?: "Beginner" | "Intermediate" | "Advanced";
   badge?: string;
   status?: "draft" | "published" | "archived";
+  pdf_url?: string | null;
 };
 
 export async function loadAdminCourses(token: string): Promise<AdminCourse[]> {
@@ -182,4 +184,49 @@ export async function deleteAdminCourse(
   if (!response.ok || !payload.success) {
     throw new Error(payload.message ?? "Unable to delete course.");
   }
+}
+
+/** Lists PDF filenames stored in backend/storage/pdfs/ (admin only). */
+export async function listStoragePdfs(token: string): Promise<string[]> {
+  const response = await fetch("/api/v1/admin/pdfs", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const payload = (await response.json()) as {
+    success: boolean;
+    data?: { pdfs?: string[] };
+    message?: string;
+  };
+  if (!response.ok || !payload.success || !payload.data) {
+    throw new Error(payload.message ?? "Unable to list PDFs.");
+  }
+  return payload.data.pdfs ?? [];
+}
+
+/** Uploads a PDF and binds it to the course (admin only). */
+export async function uploadCoursePdf(
+  token: string,
+  courseId: number,
+  file: File,
+): Promise<{ course: AdminCourse; pdf_url: string }> {
+  const body = new FormData();
+  body.append("pdf", file, file.name);
+  const response = await fetch(`/api/v1/admin/courses/${courseId}/pdf`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body,
+    cache: "no-store",
+  });
+  const payload = (await response.json()) as {
+    success: boolean;
+    data?: { course?: AdminCourse; pdf_url?: string };
+    message?: string;
+  };
+  if (!response.ok || !payload.success || !payload.data?.course) {
+    throw new Error(payload.message ?? "Unable to upload PDF.");
+  }
+  return {
+    course: payload.data.course,
+    pdf_url: payload.data.pdf_url ?? "",
+  };
 }
