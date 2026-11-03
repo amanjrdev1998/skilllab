@@ -68,4 +68,16 @@ final class AdminRepository
 
         return $statement->rowCount() === 1;
     }
+
+    public function rejectPendingEnrollment(int $enrollmentId): bool
+    {
+        $statement = $this->database()->prepare(
+            "UPDATE enrollments
+             SET status = 'cancelled'
+             WHERE id = :id AND status = 'pending'"
+        );
+        $statement->execute(['id' => $enrollmentId]);
+
+        return $statement->rowCount() === 1;
+    }
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
 import { useState } from "react";
 import Swal from "sweetalert2";
 import { useRouter, usePathname } from "next/navigation";
@@ -130,7 +131,7 @@ export default function Sidebar({
       }
 
       // Send logout request
-      const response = await fetch("http://localhost:8000/api/v1/auth/logout", {
+      const response = await fetch(apiUrl("/api/v1/auth/logout"), {
         method: "POST",
 
         headers: {

@@ -130,9 +130,9 @@ export default function LoginPage() {
   };
 
   const features = [
-    { icon: <Truck className="h-5 w-5 sm:h-6 sm:w-6" />, title: 'Fast Delivery', text: '2-3 business days' },
-    { icon: <RotateCcw className="h-5 w-5 sm:h-6 sm:w-6" />, title: 'Easy Returns', text: '30-day return policy' },
-    { icon: <Shield className="h-5 w-5 sm:h-6 sm:w-6" />, title: 'Secure Payment', text: 'SSL encrypted' },
+    { icon: <Truck className="h-5 w-5 sm:h-6 sm:w-6" />, title: 'Course Publishing', text: 'Draft to published in one click' },
+    { icon: <RotateCcw className="h-5 w-5 sm:h-6 sm:w-6" />, title: 'Enrollment Control', text: 'Approve or reject in seconds' },
+    { icon: <Shield className="h-5 w-5 sm:h-6 sm:w-6" />, title: 'Secure Payments', text: 'PayPal verified checkout' },
   ];
 
   return (
@@ -151,15 +151,15 @@ export default function LoginPage() {
 
           <div className="relative z-10 max-w-xl">
             <h1 className="text-5xl font-black leading-[0.95] tracking-[-0.06em] text-white xl:text-[5rem]">
-              Elevate Your
+              Manage Your
               <span className="mt-2 block bg-gradient-to-r from-red-400 via-orange-400 to-red-500 bg-clip-text text-transparent">
-                Shopping
+                Courses
               </span>
-              <span className="mt-2 block">Experience</span>
+              <span className="mt-2 block">& Students</span>
             </h1>
 
             <p className="mt-7 max-w-lg text-lg leading-8 text-slate-300">
-              Join thousands of happy customers shopping premium collections with exclusive deals, rewards, and premium support.
+              Run your course business from one place - publish courses, track enrollments, approve students and monitor payments.
             </p>
 
             <div className="mt-10 space-y-5">
@@ -180,11 +180,11 @@ export default function LoginPage() {
           <div className="relative z-10 grid grid-cols-3 gap-4 border-t border-slate-700/60 pt-8">
             <div className="text-center">
               <p className="text-3xl font-black text-transparent bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text">50K+</p>
-              <p className="mt-2 text-xs text-slate-400">Customers</p>
+              <p className="mt-2 text-xs text-slate-400">Students</p>
             </div>
             <div className="text-center">
               <p className="text-3xl font-black text-transparent bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text">500+</p>
-              <p className="mt-2 text-xs text-slate-400">Products</p>
+              <p className="mt-2 text-xs text-slate-400">Courses</p>
             </div>
             <div className="text-center">
               <p className="text-3xl font-black text-transparent bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text">4.9★</p>
@@ -203,7 +203,7 @@ export default function LoginPage() {
               <span className="text-xs font-bold tracking-[0.2em] text-white">SKILLLAB</span>
             </div>
             <h1 className="mt-6 text-3xl font-black tracking-[-0.05em] text-white">Welcome Back</h1>
-            <p className="mt-2 text-sm text-slate-300">Sign in to access premium shopping deals and fast delivery.</p>
+            <p className="mt-2 text-sm text-slate-300">Sign in to manage courses, students and enrollments.</p>
           </div>
         </div>
 
@@ -218,7 +218,7 @@ export default function LoginPage() {
 
             <div className="mb-8">
               <h2 className="text-3xl font-black tracking-[-0.05em] text-slate-900 sm:text-4xl">Welcome Back</h2>
-              <p className="mt-2 text-sm text-slate-600 sm:text-base">Sign in to your account to continue shopping</p>
+              <p className="mt-2 text-sm text-slate-600 sm:text-base">Administrator access only - students sign in from the main site</p>
             </div>
 
             {loginError && (

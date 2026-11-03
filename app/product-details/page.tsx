@@ -300,8 +300,26 @@ function ProductDetailsContent() {
   const productTitle = product.title;
   const productPrice = product.price;
 
+  const courseJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Course",
+    name: productTitle,
+    description: product.description ?? productTitle,
+    provider: { "@type": "Organization", name: "SkillLab" },
+    offers: {
+      "@type": "Offer",
+      price: String(productPrice),
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+    },
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(courseJsonLd) }}
+      />
       <SiteHeader />
 
       <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 text-slate-900">

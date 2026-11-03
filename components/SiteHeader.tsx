@@ -1,6 +1,7 @@
 
 "use client";
 
+import { apiUrl } from "@/lib/api";
 import { useEffect, useRef, useState } from "react";
 import {
   Menu,
@@ -124,7 +125,7 @@ export default function SiteHeader() {
 
       if (userId) {
         const response = await fetch(
-          "http://localhost:8000/api/v1/auth/logout",
+          apiUrl("/api/v1/auth/logout"),
           {
             method: "POST",
             headers: {

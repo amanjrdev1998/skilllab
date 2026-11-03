@@ -87,3 +87,99 @@ export async function approveAdminEnrollment(
     throw new Error(payload.message ?? "Unable to approve enrollment.");
   }
 }
+
+export type AdminCourseInput = {
+  title: string;
+  category: string;
+  description?: string;
+  lessons_count?: number;
+  duration_hours?: number;
+  price: number;
+  old_price?: number | null;
+  level?: "Beginner" | "Intermediate" | "Advanced";
+  badge?: string;
+  status?: "draft" | "published" | "archived";
+};
+
+export async function loadAdminCourses(token: string): Promise<AdminCourse[]> {
+  const response = await fetch("/api/v1/admin/courses", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const payload = (await response.json()) as {
+    success: boolean;
+    data?: { courses?: AdminCourse[] };
+    message?: string;
+  };
+  if (!response.ok || !payload.success || !payload.data) {
+    throw new Error(payload.message ?? "Unable to load courses.");
+  }
+  return payload.data.courses ?? [];
+}
+
+export async function createAdminCourse(
+  token: string,
+  input: AdminCourseInput,
+): Promise<AdminCourse> {
+  const response = await fetch("/api/v1/admin/courses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+    cache: "no-store",
+  });
+  const payload = (await response.json()) as {
+    success: boolean;
+    data?: { course?: AdminCourse };
+    message?: string;
+  };
+  if (!response.ok || !payload.success || !payload.data?.course) {
+    throw new Error(payload.message ?? "Unable to create course.");
+  }
+  return payload.data.course;
+}
+
+export async function updateAdminCourse(
+  token: string,
+  courseId: number,
+  input: AdminCourseInput,
+): Promise<AdminCourse> {
+  const response = await fetch(`/api/v1/admin/courses/${courseId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+    cache: "no-store",
+  });
+  const payload = (await response.json()) as {
+    success: boolean;
+    data?: { course?: AdminCourse };
+    message?: string;
+  };
+  if (!response.ok || !payload.success || !payload.data?.course) {
+    throw new Error(payload.message ?? "Unable to update course.");
+  }
+  return payload.data.course;
+}
+
+export async function deleteAdminCourse(
+  token: string,
+  courseId: number,
+): Promise<void> {
+  const response = await fetch(`/api/v1/admin/courses/${courseId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const payload = (await response.json()) as {
+    success: boolean;
+    message?: string;
+  };
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.message ?? "Unable to delete course.");
+  }
+}

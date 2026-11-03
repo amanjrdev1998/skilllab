@@ -192,5 +192,66 @@ final class ApiRoutes
 
             $admin->approveEnrollment($enrollmentId, $response);
         });
+
+        $router->post('/api/v1/admin/enrollments/{id}/reject', static function (
+            Request $request,
+            Response $response,
+            array $parameters
+        ) use ($admin, $adminGuard): never {
+            $adminGuard->user($request, $response);
+
+            $enrollmentId = filter_var(
+                $parameters[0] ?? null,
+                FILTER_VALIDATE_INT
+            );
+            if ($enrollmentId === false || $enrollmentId < 1) {
+                $response->error('Invalid enrollment id.', 400);
+            }
+
+            $admin->rejectEnrollment($enrollmentId, $response);
+        });
+
+        // ---- Admin course management ----
+        $router->get('/api/v1/admin/courses', static function (
+            Request $request,
+            Response $response
+        ) use ($admin, $adminGuard): never {
+            $adminGuard->user($request, $response);
+            $admin->listCourses($response);
+        });
+
+        $router->post('/api/v1/admin/courses', static function (
+            Request $request,
+            Response $response
+        ) use ($admin, $adminGuard): never {
+            $adminGuard->user($request, $response);
+            $admin->createCourse($request, $response);
+        });
+
+        $router->put('/api/v1/admin/courses/{id}', static function (
+            Request $request,
+            Response $response,
+            array $parameters
+        ) use ($admin, $adminGuard): never {
+            $adminGuard->user($request, $response);
+            $courseId = filter_var($parameters[0] ?? null, FILTER_VALIDATE_INT);
+            if ($courseId === false || $courseId < 1) {
+                $response->error('Invalid course id.', 400);
+            }
+            $admin->updateCourse($courseId, $request, $response);
+        });
+
+        $router->delete('/api/v1/admin/courses/{id}', static function (
+            Request $request,
+            Response $response,
+            array $parameters
+        ) use ($admin, $adminGuard): never {
+            $adminGuard->user($request, $response);
+            $courseId = filter_var($parameters[0] ?? null, FILTER_VALIDATE_INT);
+            if ($courseId === false || $courseId < 1) {
+                $response->error('Invalid course id.', 400);
+            }
+            $admin->deleteCourse($courseId, $response);
+        });
     }
 }

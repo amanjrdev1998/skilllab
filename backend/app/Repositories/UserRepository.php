@@ -68,14 +68,15 @@ final class UserRepository
     public function create(string $name, string $email, string $password, string $phone = '', string $referralCode = null): array
 {
     $statement = $this->database()->prepare(
-        'INSERT INTO users (name, email, password_hash, phone, referral_code, status)
-         VALUES (:name, :email, :password_hash, :phone, :referral_code, :status)'
+        'INSERT INTO users (name, email, password_hash, phone, wallet, referral_code, status)
+         VALUES (:name, :email, :password_hash, :phone, :wallet, :referral_code, :status)'
     );
     $statement->execute([
         'name' => trim($name),
         'email' => strtolower(trim($email)),
         'password_hash' => password_hash($password, PASSWORD_DEFAULT),
         'phone' => trim($phone) !== '' ? trim($phone) : null,
+        'wallet' => '0',
         'referral_code' => $referralCode,
         'status' => 'active'
     ]);
@@ -85,6 +86,7 @@ final class UserRepository
         'name' => trim($name),
         'email' => strtolower(trim($email)),
         'phone' => trim($phone) !== '' ? trim($phone) : null,
+        'wallet' => '0',
         'referral_code' => $referralCode,
         'status' => 'active',
         'role' => 'student',

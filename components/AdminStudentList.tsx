@@ -153,7 +153,7 @@ export default function AdminStudentList() {
       setError("");
 
       const response = await fetch(
-        `http://localhost:8000/api/v1/admin/enrollments/${enrollmentId}/reject`,
+        `/api/v1/admin/enrollments/${enrollmentId}/reject`,
         {
           method: "POST",
           headers: {
@@ -180,7 +180,7 @@ export default function AdminStudentList() {
             enrollment.id === enrollmentId
               ? {
                   ...enrollment,
-                  status: "rejected",
+                  status: "cancelled",
                 }
               : enrollment,
           ),

@@ -24,6 +24,16 @@ final class Router
         $this->add('POST', $path, $handler);
     }
 
+    public function put(string $path, callable $handler): void
+    {
+        $this->add('PUT', $path, $handler);
+    }
+
+    public function delete(string $path, callable $handler): void
+    {
+        $this->add('DELETE', $path, $handler);
+    }
+
     private function add(string $method, string $path, callable $handler): void
     {
         $this->routes[] = compact('method', 'path', 'handler');

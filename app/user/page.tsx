@@ -1,5 +1,6 @@
 "use client";
 
+import { apiUrl } from "@/lib/api";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, BookOpen, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
@@ -111,7 +112,7 @@ export default function UserLogin() {
 		const loadingToast = toast.loading('Signing you in...');
 
 		try {
-			const response = await fetch("http://localhost:8000/api/v1/auth/login", {
+			const response = await fetch(apiUrl("/api/v1/auth/login"), {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({

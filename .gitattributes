@@ -1,0 +1,16 @@
+* text=auto
+*.php text
+*.ts text
+*.tsx text
+*.js text
+*.mjs text
+*.json text
+*.md text
+*.sql text
+*.css text
+*.svg text
+*.pdf binary
+*.ico binary
+*.png binary
+*.jpg binary
+*.webp binary

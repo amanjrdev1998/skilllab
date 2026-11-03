@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SiteFooter from "@/components/SiteFooter";
@@ -15,15 +16,51 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SKILLLAB | Learn Digital Marketing & AI Skills",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.skilllab.example.com",
+  ),
+  title: {
+    default: "SkillLab | Online Courses in Digital Marketing, AI & App Development",
+    template: "%s | SkillLab",
+  },
   description:
-    "Master practical digital marketing, AI automation, and growth skills with SKILLLAB's modern online courses.",
+    "Learn high-income skills online with SkillLab. Practical video courses in Facebook ads, Instagram marketing, AI automation, AI agents, and Flutter app development. Pay securely with PayPal.",
+  keywords: [
+    "online courses",
+    "digital marketing course",
+    "facebook ads course",
+    "instagram ads course",
+    "ai automation course",
+    "ai agent course",
+    "flutter app development course",
+    "learn digital marketing online",
+    "social media marketing training",
+    "make money online courses",
+    "skilllab",
+  ],
+  authors: [{ name: "SkillLab" }],
+  creator: "SkillLab",
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: "website",
+    siteName: "SkillLab",
+    title: "SkillLab | Online Courses in Digital Marketing, AI & App Development",
+    description:
+      "Practical online courses in digital marketing, AI automation and app development. Learn high-income skills, pay securely with PayPal.",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SkillLab | Online Courses in Digital Marketing, AI & App Development",
+    description:
+      "Practical online courses in digital marketing, AI automation and app development.",
+  },
   icons: {
     icon: "/favicon.svg",
   },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"

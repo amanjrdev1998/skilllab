@@ -6,7 +6,7 @@ CREATE TABLE users (
     email VARCHAR(190) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     phone VARCHAR(30) NULL,
-    wallet VARCHAR(120) NOT NULL,
+    wallet VARCHAR(120) NOT NULL DEFAULT '0',
     status VARCHAR(120) NOT NULL DEFAULT 'active',
     referral_code VARCHAR(40) NULL UNIQUE,
     role ENUM('student', 'admin') NOT NULL DEFAULT 'student',
