@@ -10,6 +10,7 @@ use App\Controllers\CoursePdfController;
 use App\Controllers\EnrollmentController;
 use App\Controllers\AdminController;
 use App\Controllers\PaymentController;
+use App\Controllers\WalletController;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Router;
@@ -26,6 +27,7 @@ final class ApiRoutes
         $enrollments = new EnrollmentController();
         $admin = new AdminController();
         $payments = new PaymentController();
+        $wallet = new WalletController();
 
         $guard = new AuthMiddleware();
         $adminGuard = new AdminMiddleware();
@@ -140,6 +142,35 @@ final class ApiRoutes
             );
         });
 
+        // =========================
+        // Wallet & withdrawals (authenticated user)
+        // =========================
+
+        $router->get('/api/v1/wallet', static function (
+            Request $request,
+            Response $response
+        ) use ($wallet, $guard): never {
+            $wallet->show($guard->user($request, $response), $response);
+        });
+
+        $router->post('/api/v1/wallet/withdraw', static function (
+            Request $request,
+            Response $response
+        ) use ($wallet, $guard): never {
+            $wallet->requestWithdrawal(
+                $request,
+                $guard->user($request, $response),
+                $response
+            );
+        });
+
+        $router->get('/api/v1/wallet/withdrawals', static function (
+            Request $request,
+            Response $response
+        ) use ($wallet, $guard): never {
+            $wallet->myWithdrawals($guard->user($request, $response), $response);
+        });
+
         $router->post('/api/v1/payments/paypal/orders', static function (
             Request $request,
             Response $response
@@ -232,6 +263,29 @@ final class ApiRoutes
             }
 
             $admin->rejectEnrollment($enrollmentId, $response);
+        });
+
+        // ---- Admin withdrawal management ----
+        $router->get('/api/v1/admin/withdrawals', static function (
+            Request $request,
+            Response $response
+        ) use ($wallet, $adminGuard): never {
+            $adminGuard->user($request, $response);
+            $wallet->listForAdmin($response);
+        });
+
+        $router->post('/api/v1/admin/withdrawals/{id}/{action}', static function (
+            Request $request,
+            Response $response,
+            array $parameters
+        ) use ($wallet, $adminGuard): never {
+            $adminGuard->user($request, $response);
+            $withdrawalId = filter_var($parameters[0] ?? null, FILTER_VALIDATE_INT);
+            $action = (string) ($parameters[1] ?? '');
+            if ($withdrawalId === false || $withdrawalId < 1) {
+                $response->error('Invalid withdrawal id.', 400);
+            }
+            $wallet->setStatus($withdrawalId, $action, $request, $response);
         });
 
         // ---- Admin course management ----

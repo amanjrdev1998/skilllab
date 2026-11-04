@@ -150,10 +150,10 @@ export default function CourseList({ userName = "Learner" }: { userName?: string
               }`}>{course.status === "pending" ? "Pending Approval" : course.status}</span>
               <div><div className="flex items-center justify-between text-xs font-semibold text-slate-500"><span>{course.progress > 0 ? "In progress" : "Not started"}</span><span>{course.progress}%</span></div><div className="mt-2 h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-600" style={{ width: `${course.progress}%` }} /></div></div>
               <span className="text-lg font-black text-slate-950">{formatUsd(course.price)}</span>
-              {course.hasPdf ? (
+              {course.hasPdf && course.status !== "pending" ? (
                 <Link href={`/course-pdf/${course.id}`} aria-label={`View PDF for ${course.title}`} title="Open protected PDF reader" className="inline-flex w-fit items-center justify-center rounded-lg border border-slate-300 p-2.5 text-slate-600 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 md:ml-auto"><Eye className="h-5 w-5" /></Link>
               ) : (
-                <span className="inline-flex w-fit cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 p-2.5 text-slate-300 md:ml-auto" title="No PDF attached to this course"><Eye className="h-5 w-5" /></span>
+                <span className="inline-flex w-fit cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 p-2.5 text-slate-300 md:ml-auto" title={course.status === "pending" ? "PDF unlocks after admin approval" : "No PDF attached to this course"}><Eye className="h-5 w-5" /></span>
               )}
             </div>
           ))}

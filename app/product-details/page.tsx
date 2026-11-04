@@ -128,6 +128,7 @@ function ProductDetailsContent() {
   const [paymentCurrency, setPaymentCurrency] = useState("USD");
   const [paymentError, setPaymentError] = useState("");
   const [isCapturingPayment, setIsCapturingPayment] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
 
   /*
    * Check whether user is logged in
@@ -215,7 +216,10 @@ function ProductDetailsContent() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ course_id: product?.id }),
+        body: JSON.stringify({
+          course_id: product?.id,
+          referral_code: referralCode.trim() || undefined,
+        }),
       });
       const payload = (await response.json()) as {
         success: boolean;
@@ -628,6 +632,33 @@ function ProductDetailsContent() {
                       placeholder="Your address"
                       className="w-full resize-none rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                     />
+
+                  </div>
+
+                  {/* REFERRAL CODE (optional) */}
+                  <div>
+
+                    <label
+                      htmlFor="referral-code"
+                      className="mb-2 block text-sm font-semibold text-slate-700"
+                    >
+                      Referral code <span className="font-normal text-slate-400">(optional)</span>
+                    </label>
+
+                    <input
+                      id="referral-code"
+                      name="referralCode"
+                      type="text"
+                      autoComplete="off"
+                      placeholder="Have a referral code? Enter it here"
+                      value={referralCode}
+                      onChange={(e) => setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                      className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm uppercase outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    />
+
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      The code owner earns a referral reward when you complete payment.
+                    </p>
 
                   </div>
 

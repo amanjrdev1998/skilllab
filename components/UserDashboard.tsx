@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { formatUsd } from "@/lib/currency";
+import WalletCard from "@/components/WalletCard";
 
 type User = { name: string; email: string };
 
@@ -149,6 +150,8 @@ export default function UserDashboard({ user }: { user: User }) {
           </div>
         ))}
       </section>
+
+      <WalletCard />
 
       <section className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

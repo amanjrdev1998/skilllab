@@ -10,6 +10,7 @@ import {
   Settings,
   ShieldCheck,
   Users,
+  Wallet,
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -21,6 +22,7 @@ const menuItems = [
   { label: 'Overview', href: '/admin/dashboard', icon: LayoutDashboard },
   { label: 'Students', href: '/admin/student', icon: Users },
   { label: 'Courses', href: '/admin/course', icon: BookOpen },
+  { label: 'Withdrawals', href: '/admin/withdrawals', icon: Wallet },
   { label: 'Analytics', href: '/admin/dashboard/analytics', icon: BarChart3 },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
 ];

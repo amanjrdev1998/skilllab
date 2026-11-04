@@ -56,6 +56,29 @@ The API is available at `http://localhost:8000/api/v1`.
 - `GET /api/v1/admin/pdfs` with an administrator bearer token to list PDF filenames in `backend/storage/pdfs/`
 - `POST /api/v1/admin/courses/{id}/pdf` with an administrator bearer token and multipart field `pdf` to upload a PDF (max 25 MB) and bind it to the course
 
+### Affiliate (wallet & withdrawals)
+
+- `GET /api/v1/wallet` — balance, referral code, transactions (authenticated user)
+- `POST /api/v1/wallet/withdraw` `{ amount, upi_id }` — request a withdrawal; the wallet is debited immediately and refunded on rejection (authenticated user)
+- `GET /api/v1/wallet/withdrawals` — the user's own withdrawal requests
+- `GET /api/v1/admin/withdrawals` — all requests with user details (admin)
+- `POST /api/v1/admin/withdrawals/{id}/approve|reject|paid` — approve → pay via UPI manually → mark paid; reject refunds the wallet (admin)
+
+How it works: the buyer may pass `referral_code` to `POST /api/v1/payments/paypal/orders`. On payment completion, `REFERRAL_COMMISSION_PERCENT` (default 10) of the course price is credited to the referral-code owner's wallet (`wallet_transactions` ledger). Migration `005_affiliate_system.sql` adds `payment_transactions.referral_code/referral_amount`, `wallet_transactions`, and `withdrawal_requests`.
+
+### Payment notifications
+
+On every completed payment (capture API or PayPal webhook), the admin is notified with course, amount, buyer, and PayPal capture/order ids. Configure in `.env`:
+- WhatsApp via bridge: `NOTIFY_WHATSAPP_ENABLED=true`, `NOTIFY_WHATSAPP_URL=http://localhost:3001`, `ADMIN_WHATSAPP_NUMBER=919999999999`
+- Email: `NOTIFY_EMAIL_ENABLED=true`, `ADMIN_EMAIL=admin@skilllab.store`, `MAIL_FROM=noreply@skilllab.store`
+Notifications are best-effort and never break checkout.
+
+### PayPal webhook
+
+Register this URL in the PayPal Developer Dashboard (Sandbox app AND Live app separately):
+`https://skilllab.store/api/paypal/webhook`
+(legacy alias `/paypal/responce` still works). Subscribe to the `PAYMENT.CAPTURE.COMPLETED` event and paste the webhook ID into `PAYPAL_WEBHOOK_ID`. The handler verifies PayPal's signature, matches amount/currency against the stored payment, then completes it idempotently — the same completion path as the capture API, so double-processing is impossible.
+
 ## Course PDFs (protected)
 
 PDFs live in `backend/storage/pdfs/` — outside the web root, so no direct URL can ever download them. `courses.pdf_url` stores only the file name. Migration `004_bind_course_pdfs.sql` binds the five shipped PDFs to their courses. Students open them at `/course-pdf/{id}` in the frontend, which renders pages with PDF.js (no download/print buttons, right-click disabled) after an authenticated, enrollment-checked fetch.

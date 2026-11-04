@@ -21,12 +21,13 @@ final class PaymentRepository
         int $userId,
         int $courseId,
         string $uniqueKey,
-        string $currency
+        string $currency,
+        ?string $referralCode = null
     ): ?array {
         $database = $this->database();
         $statement = $database->prepare(
-            "INSERT INTO payment_transactions (unique_key, user_id, course_id, amount, currency)
-             SELECT :unique_key, :user_id, id, price, :currency
+            "INSERT INTO payment_transactions (unique_key, user_id, course_id, amount, currency, referral_code)
+             SELECT :unique_key, :user_id, id, price, :currency, :referral_code
              FROM courses
              WHERE id = :course_id AND status = 'published' AND price > 0"
         );
@@ -35,6 +36,7 @@ final class PaymentRepository
             'user_id' => $userId,
             'currency' => $currency,
             'course_id' => $courseId,
+            'referral_code' => $referralCode,
         ]);
 
         if ($statement->rowCount() !== 1) {
@@ -184,6 +186,60 @@ final class PaymentRepository
         }
     }
 
+    /**
+     * Details for the admin payment notification, keyed by the internal unique key.
+     */
+    public function paymentDetails(string $uniqueKey): ?array
+    {
+        $statement = $this->database()->prepare(
+            'SELECT p.amount, p.currency, p.paypal_order_id, p.paypal_capture_id,
+                    p.referral_code, p.referral_amount,
+                    c.title AS course_title, u.name AS user_name, u.email AS user_email
+             FROM payment_transactions p
+             INNER JOIN courses c ON c.id = p.course_id
+             INNER JOIN users u ON u.id = p.user_id
+             WHERE p.unique_key = :key LIMIT 1'
+        );
+        $statement->execute(['key' => $uniqueKey]);
+        $row = $statement->fetch();
+        return $row === false ? null : $this->formatDetails($row);
+    }
+
+    /**
+     * Same, keyed by the PayPal order id (for the webhook path).
+     */
+    public function paymentDetailsByOrderId(string $orderId): ?array
+    {
+        $statement = $this->database()->prepare(
+            'SELECT p.amount, p.currency, p.paypal_order_id, p.paypal_capture_id,
+                    p.referral_code, p.referral_amount,
+                    c.title AS course_title, u.name AS user_name, u.email AS user_email
+             FROM payment_transactions p
+             INNER JOIN courses c ON c.id = p.course_id
+             INNER JOIN users u ON u.id = p.user_id
+             WHERE p.paypal_order_id = :order_id LIMIT 1'
+        );
+        $statement->execute(['order_id' => $orderId]);
+        $row = $statement->fetch();
+        return $row === false ? null : $this->formatDetails($row);
+    }
+
+    /** @param array<string,mixed> $row */
+    private function formatDetails(array $row): array
+    {
+        return [
+            'course_title' => (string) $row['course_title'],
+            'amount' => number_format((float) $row['amount'], 2, '.', ''),
+            'currency' => (string) $row['currency'],
+            'user_name' => (string) $row['user_name'],
+            'user_email' => (string) $row['user_email'],
+            'capture_id' => (string) ($row['paypal_capture_id'] ?? ''),
+            'order_id' => (string) ($row['paypal_order_id'] ?? ''),
+            'referral_code' => $row['referral_code'] !== null ? (string) $row['referral_code'] : null,
+            'referral_amount' => (float) ($row['referral_amount'] ?? 0),
+        ];
+    }
+
     private function completePayment(PDO $database, array $payment, string $captureId): void
     {
         if ($payment['status'] !== 'pending' || $payment['paypal_order_id'] === null) {
@@ -215,5 +271,64 @@ final class PaymentRepository
                 price_paid = VALUES(price_paid)"
         );
         $statement->execute(['payment_id' => $payment['id']]);
+
+        $this->creditReferrer($database, (int) $payment['id']);
+    }
+
+    /**
+     * Credit the referral-code owner with the configured commission.
+     * Runs inside the caller's transaction; silently skips when no valid
+     * referral code was used for the purchase.
+     */
+    private function creditReferrer(PDO $database, int $paymentId): void
+    {
+        global $config;
+        $percent = (float) ($config['referral']['commission_percent'] ?? 10);
+        if ($percent <= 0) {
+            return;
+        }
+
+        $statement = $database->prepare(
+            'SELECT referral_code, amount, user_id
+             FROM payment_transactions WHERE id = :id LIMIT 1'
+        );
+        $statement->execute(['id' => $paymentId]);
+        $payment = $statement->fetch();
+        if ($payment === false || empty($payment['referral_code'])) {
+            return;
+        }
+
+        $statement = $database->prepare(
+            'SELECT id FROM users WHERE referral_code = :code LIMIT 1'
+        );
+        $statement->execute(['code' => $payment['referral_code']]);
+        $referrer = $statement->fetch();
+        if ($referrer === false || (int) $referrer['id'] === (int) $payment['user_id']) {
+            return;
+        }
+
+        $commission = round((float) $payment['amount'] * $percent / 100, 2);
+        if ($commission <= 0) {
+            return;
+        }
+        $referrerId = (int) $referrer['id'];
+
+        $database->prepare(
+            'UPDATE users SET wallet = CAST(wallet AS DECIMAL(10,2)) + :amount WHERE id = :id'
+        )->execute(['amount' => $commission, 'id' => $referrerId]);
+
+        $database->prepare(
+            "INSERT INTO wallet_transactions (user_id, type, amount, reason, reference)
+             VALUES (:user_id, 'credit', :amount, :reason, :reference)"
+        )->execute([
+            'user_id' => $referrerId,
+            'amount' => $commission,
+            'reason' => 'Referral commission (' . rtrim(rtrim(number_format($percent, 2, '.', ''), '0'), '.') . '%)',
+            'reference' => 'payment-' . $paymentId,
+        ]);
+
+        $database->prepare(
+            'UPDATE payment_transactions SET referral_amount = :amount WHERE id = :id'
+        )->execute(['amount' => $commission, 'id' => $paymentId]);
     }
 }

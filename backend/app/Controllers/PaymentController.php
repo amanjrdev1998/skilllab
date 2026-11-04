@@ -5,6 +5,8 @@ namespace App\Controllers;
 use App\Core\Request;
 use App\Core\Response;
 use App\Repositories\PaymentRepository;
+use App\Repositories\UserRepository;
+use App\Services\NotificationService;
 use App\Services\PayPalClient;
 use RuntimeException;
 
@@ -12,15 +14,18 @@ final class PaymentController
 {
     private PaymentRepository $payments;
     private PayPalClient $paypal;
+    private UserRepository $users;
     private string $currency;
 
     public function __construct(
         ?PaymentRepository $payments = null,
-        ?PayPalClient $paypal = null
+        ?PayPalClient $paypal = null,
+        ?UserRepository $users = null
     ) {
         global $config;
         $this->payments = $payments ?? new PaymentRepository();
         $this->paypal = $paypal ?? new PayPalClient();
+        $this->users = $users ?? new UserRepository();
         $this->currency = (string) ($config['paypal']['currency'] ?? 'USD');
     }
 
@@ -36,12 +41,28 @@ final class PaymentController
         }
 
         $uniqueKey = $this->uuid();
+
+        // Optional referral code: must belong to another user.
+        $referralCode = trim((string) $request->input('referral_code', ''));
+        if ($referralCode !== '') {
+            $referrer = $this->users->findByReferralCode($referralCode);
+            if ($referrer === null) {
+                $response->error('The referral code is invalid.', 422);
+            }
+            if ((int) $referrer['id'] === (int) $user['id']) {
+                $response->error('You cannot use your own referral code.', 422);
+            }
+        } else {
+            $referralCode = null;
+        }
+
         try {
             $payment = $this->payments->createPending(
                 (int) $user['id'],
                 $validatedCourseId,
                 $uniqueKey,
-                $this->currency
+                $this->currency,
+                $referralCode
             );
         } catch (\Throwable $exception) {
             error_log(
@@ -132,6 +153,7 @@ final class PaymentController
             }
 
             $this->payments->completeAndEnroll($uniqueKey, $captureId);
+            $this->notifyAdmin($uniqueKey);
         } catch (\Throwable $exception) {
             error_log('PayPal capture failed: ' . $exception->getMessage());
             $response->error('Unable to verify or complete the PayPal payment.', 502);
@@ -208,12 +230,40 @@ final class PaymentController
                 $amount['value'],
                 $amount['currency_code']
             );
+            $this->notifyAdminByOrderId($relatedIds['order_id']);
         } catch (\Throwable $exception) {
             error_log('PayPal webhook processing failed for event ' . $eventId . ': ' . $exception->getMessage());
             $response->error('Unable to process the PayPal capture webhook.', 500);
         }
 
         $response->success(['received' => true, 'status' => 'completed']);
+    }
+
+    /**
+     * Best-effort admin notification (WhatsApp/email). Never breaks the flow.
+     */
+    private function notifyAdmin(string $uniqueKey): void
+    {
+        try {
+            $details = $this->payments->paymentDetails($uniqueKey);
+            if ($details !== null) {
+                (new NotificationService())->sendPaymentReceived($details);
+            }
+        } catch (\Throwable $exception) {
+            error_log('Payment notification failed: ' . $exception->getMessage());
+        }
+    }
+
+    private function notifyAdminByOrderId(string $orderId): void
+    {
+        try {
+            $details = $this->payments->paymentDetailsByOrderId($orderId);
+            if ($details !== null) {
+                (new NotificationService())->sendPaymentReceived($details);
+            }
+        } catch (\Throwable $exception) {
+            error_log('Payment notification failed: ' . $exception->getMessage());
+        }
     }
 
     private function uuid(): string
