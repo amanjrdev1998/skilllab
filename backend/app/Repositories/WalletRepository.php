@@ -132,12 +132,13 @@ final class WalletRepository
     {
         $statement = $this->database()->prepare(
             'INSERT INTO withdrawal_requests (user_id, amount, upi_id, status)
-             VALUES (:user_id, :amount, :upi_id, 'pending')'
+             VALUES (:user_id, :amount, :upi_id, :status)'
         );
         $statement->execute([
             'user_id' => $userId,
             'amount' => $amount,
             'upi_id' => $upiId,
+            'status' => 'pending',
         ]);
         $id = (int) $this->database()->lastInsertId();
         return $this->findWithdrawal($id) ?? [];

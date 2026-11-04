@@ -1,0 +1,30 @@
+# SkillLab PHP API — Apache/LiteSpeed (Hostinger shared hosting)
+#
+# The API entry point is public/index.php, but this folder is usually
+# deployed as https://yourdomain.com/backend/ — i.e. this folder itself
+# is web-accessible. Without this file, requests to /backend/ and
+# /backend/api/... return "403 Forbidden" (no index file, directory
+# listing disabled) and the .env / source files are exposed.
+#
+# What this file does:
+#   1. Blocks direct web access to secrets and internals
+#      (.env, SQL migrations, app/, config/, storage/, ...).
+#   2. Passes the Authorization header through to PHP (needed for
+#      Bearer-token auth on some Apache/FPM setups).
+#   3. Routes every API request to public/index.php.
+
+RewriteEngine On
+
+# --- 1. Never serve these directly -------------------------------------
+RewriteRule (^|/)\.env($|/) - [F,L]
+RewriteRule \.(sql|md|example|lock|log)$ - [F,L]
+RewriteRule ^(app|config|database|storage)/ - [F,L]
+
+# --- 2. Authorization header passthrough -------------------------------
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# --- 3. Front controller ----------------------------------------------
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ public/index.php [QSA,L]
