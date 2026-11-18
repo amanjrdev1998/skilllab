@@ -342,8 +342,7 @@ function ProductDetailsContent() {
               </h1>
 
               <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
-                Everything you need to turn paid social campaigns into a
-                repeatable growth channel.
+                {product.description}
               </p>
 
             </div>

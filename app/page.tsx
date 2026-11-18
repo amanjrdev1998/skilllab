@@ -333,7 +333,7 @@ export default function Home() {
           <div className="mx-auto grid max-w-7xl grid-cols-2 lg:grid-cols-4">
             {[
               ["10K+", "Students"],
-              ["4", "Expert Courses"],
+              ["5", "Expert Courses"],
               ["50+", "Practical Projects"],
               ["4.9/5", "Average Rating"],
             ].map(([value, label], index) => (
