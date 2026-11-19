@@ -16,6 +16,13 @@ RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
+# The frontend calls /api/v1/... (Next.js API routes), but this is a
+# static export - there is no Node server to answer them. Send those
+# calls straight to the Core PHP backend instead, which serves the
+# same paths under /backend/api/v1/... (e.g. /api/v1/courses ->
+# /backend/api/v1/courses). This must come before the .html rewrite.
+RewriteRule ^api/(.*)$ /backend/api/$1 [L]
+
 # /user/ -> user.html, /user -> user.html,
 # /admin/dashboard/ -> admin/dashboard.html, ...
 # (skipped when the folder has its own index.html)
