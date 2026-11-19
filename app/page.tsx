@@ -109,6 +109,16 @@ const faqs = [
       "Yes. You will receive a certificate after completing the required course content.",
   },
   {
+    question: "What language are the courses in?",
+    answer:
+      "English. All course lessons are taught in English.",
+  },
+  {
+    question: "How do I pay, and can I get a refund?",
+    answer:
+      "You pay securely with PayPal in USD. It is a one-time payment, and purchases are non-refundable once course access is granted. Please see the Refund Policy before you buy.",
+  },
+  {
     question: "Can I learn at my own pace?",
     answer:
       "Absolutely. All courses are self-paced, so you can learn whenever it is convenient for you.",

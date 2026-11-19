@@ -24,6 +24,19 @@ const included = [
   "Future course updates included",
 ];
 
+// Curriculum verified from the AI Automation course PDF
+// (Learning_AI_Automation_SkillLab.pdf). Shown only for that course.
+const aiAutomationCurriculum = [
+  "Foundations of AI Automation",
+  "Core AI Technologies",
+  "No-Code and Low-Code Platforms",
+  "Prompt Engineering",
+  "Building Your First Workflow",
+  "AI Agents and Advanced Workflows",
+  "Real-World Use Cases",
+  "Best Practices and Roadmap",
+];
+
 type ApiCourse = {
   id: number | string;
   title: string;
@@ -309,6 +322,7 @@ function ProductDetailsContent() {
     "@type": "Course",
     name: productTitle,
     description: product.description ?? productTitle,
+    inLanguage: "en",
     provider: { "@type": "Organization", name: "SkillLab" },
     offers: {
       "@type": "Offer",
@@ -376,6 +390,10 @@ function ProductDetailsContent() {
                 {product.description}
               </p>
 
+              <p className="mt-5 text-sm font-semibold text-white">
+                Language: English
+              </p>
+
               <div className="mt-8 grid gap-4 border-t border-white/20 pt-6 sm:grid-cols-3">
 
                 <div className="flex items-center gap-3">
@@ -431,6 +449,33 @@ function ProductDetailsContent() {
 
               </div>
             </div>
+
+            {/* CURRICULUM - AI AUTOMATION ONLY */}
+            {product.id === 3 && (
+              <div className="mt-8 rounded-[28px] border border-slate-200 bg-white p-7 shadow-sm sm:p-9">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-600">
+                  What you will learn
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+                  Course curriculum
+                </h2>
+
+                <ol className="mt-7 space-y-3">
+                  {aiAutomationCurriculum.map((part, index) => (
+                    <li
+                      key={part}
+                      className="flex items-start gap-3 text-sm leading-6 text-slate-600"
+                    >
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
+                        {index + 1}
+                      </span>
+                      <span>{part}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </section>
 
           {/* RIGHT - ENROLLMENT */}
@@ -457,6 +502,17 @@ function ProductDetailsContent() {
               </p>
 
             </div>
+
+            <p className="mt-4 text-xs leading-5 text-slate-500">
+              Secure checkout with PayPal (USD). One-time payment.
+              Purchases are non-refundable once course access is granted.{" "}
+              <a
+                href="/cancelation-and-refund"
+                className="font-semibold text-indigo-600 underline"
+              >
+                Refund Policy
+              </a>
+            </p>
 
             {/* AUTH CHECK */}
             {isCheckingAuth ? (

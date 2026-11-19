@@ -5,6 +5,12 @@ export default function SiteFooter() {
         <div>
           <a href="/" className="text-lg font-black tracking-wide text-white">SKILLLAB</a>
           <p className="mt-2 text-sm text-slate-400">Practical digital skills for your next career move.</p>
+          <p className="mt-2 text-sm text-slate-400">
+            Contact:{" "}
+            <a href="mailto:admin@skilllab.store" className="text-slate-200 underline">
+              admin@skilllab.store
+            </a>
+          </p>
         </div>
         <nav className="flex flex-wrap gap-5 text-sm">
           <a href="/" className="transition hover:text-white">Home</a>
